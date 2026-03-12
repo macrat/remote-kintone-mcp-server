@@ -14,9 +14,9 @@
   "author": "MacRat <m@crat.jp>",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node --env-file=.env dist/index.js",
     "test": "vitest run",
     "check": "tsc --noEmit && biome check .",
     "format": "biome check --fix ."
