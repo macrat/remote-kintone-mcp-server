@@ -9,6 +9,14 @@ import {
 import { createLogger } from "./server/logger.js";
 
 const logger = createLogger();
+
+const requiredEnvVars = ["JWE_SECRET_KEY"] as const;
+const missing = requiredEnvVars.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  logger.error("missing_env_vars", { missing });
+  process.exit(1);
+}
+
 const port = Number(process.env.PORT) || 3000;
 
 const server = serve({ fetch: app.fetch, port }, (info) => {
