@@ -28,24 +28,26 @@ label { display: block; font-size: 0.875rem; color: #555; margin-bottom: 0.25rem
 input[type="text"], input[type="url"], input[type="password"] { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; margin-bottom: 1rem; }
 button { width: 100%; padding: 0.75rem; background: #0071c5; color: #fff; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
 button:hover { background: #005a9e; }
+button:focus-visible { outline: 2px solid #0071c5; outline-offset: 2px; }
 </style>
 </head>
 <body>
 <div class="card">
 <h1>kintone ログイン</h1>
-<form method="POST" action="/authorize">
+<form method="POST" action="/authorize" aria-label="kintone ログインフォーム">
 <input type="hidden" name="client_id" value="${escape(params.clientId)}">
 <input type="hidden" name="redirect_uri" value="${escape(params.redirectUri)}">
 <input type="hidden" name="code_challenge" value="${escape(params.codeChallenge)}">
 <input type="hidden" name="code_challenge_method" value="${escape(params.codeChallengeMethod)}">
 <input type="hidden" name="state" value="${escape(params.state)}">
 <label for="base_url">kintone ベースURL</label>
-<input type="url" id="base_url" name="base_url" placeholder="https://example.cybozu.com" required>
+<span id="base_url_desc" class="sr-only" style="display:none;">例: https://example.cybozu.com</span>
+<input type="url" id="base_url" name="base_url" placeholder="https://example.cybozu.com" required autofocus autocomplete="url" aria-describedby="base_url_desc">
 <label for="username">ログインID</label>
-<input type="text" id="username" name="username" required>
+<input type="text" id="username" name="username" required autocomplete="username">
 <label for="password">パスワード</label>
-<input type="password" id="password" name="password" required>
-<button type="submit">ログイン</button>
+<input type="password" id="password" name="password" required autocomplete="current-password">
+<button type="submit" aria-label="kintone にログイン">ログイン</button>
 </form>
 </div>
 </body>
