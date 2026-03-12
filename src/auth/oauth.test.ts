@@ -692,11 +692,7 @@ describe("OAuth endpoints", () => {
     it("should return HTML error page when baseUrl is not a valid URL", async () => {
       const { client_id, challenge } = await registerClientAndPKCE();
 
-      const res = await postAuthorize(
-        "not-a-url",
-        client_id,
-        challenge,
-      );
+      const res = await postAuthorize("not-a-url", client_id, challenge);
 
       expect(res.status).not.toBe(500);
       const contentType = res.headers.get("content-type") ?? "";

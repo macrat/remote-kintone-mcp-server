@@ -212,8 +212,11 @@ describe("SSRF protection", () => {
       name: "IPv4-mapped IPv6 (192.168.x)",
       url: "https://[::ffff:192.168.1.1]/",
     },
-    { name: "IPv6 unspecified", url: "https://[::]/"},
-    { name: "Cloud metadata (169.254.169.254)", url: "https://169.254.169.254/" },
+    { name: "IPv6 unspecified", url: "https://[::]/" },
+    {
+      name: "Cloud metadata (169.254.169.254)",
+      url: "https://169.254.169.254/",
+    },
   ];
 
   for (const { name, url } of privateAddresses) {

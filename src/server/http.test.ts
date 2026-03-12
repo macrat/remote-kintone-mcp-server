@@ -174,7 +174,9 @@ describe("token expiry enforcement on existing sessions", () => {
   function createMockTransportWithHandleRequest() {
     return {
       close: vi.fn(),
-      handleRequest: vi.fn().mockResolvedValue(new Response("ok", { status: 200 })),
+      handleRequest: vi
+        .fn()
+        .mockResolvedValue(new Response("ok", { status: 200 })),
     } as unknown as (typeof sessions extends Map<string, infer V>
       ? V
       : never)["transport"];

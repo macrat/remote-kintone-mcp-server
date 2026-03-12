@@ -119,22 +119,9 @@ describe("wrapWithErrorHandling timer cleanup", () => {
   it("should not leave pending timers after a successful tool call", async () => {
     const server = createTestServer();
     const client = createMockClient();
-    const registerSpy = vi.spyOn(server, "registerTool");
-
     registerKintoneTools(server, client);
 
-    // Get the wrapped callback registered for the first tool
-    const wrappedCallback = registerSpy.mock.calls[0][2] as (
-      ...args: unknown[]
-    ) => Promise<unknown>;
-
-    // The wrapped callback calls the underlying tool callback internally.
-    // We need to mock the underlying network call so it resolves successfully.
-    // Since wrapWithErrorHandling wraps the callback from createToolCallback,
-    // we call the wrapped callback directly — it will fail (no real kintone),
-    // but we can test timer behavior by checking timer count.
-
-    // Instead, let's re-register with a mock callback that resolves immediately.
+    // Re-register with a mock callback that resolves immediately.
     const server2 = createTestServer();
     const registerSpy2 = vi.spyOn(server2, "registerTool");
 
