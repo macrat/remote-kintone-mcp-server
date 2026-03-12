@@ -9,6 +9,8 @@ import { createLogger } from "../server/logger.js";
 
 const logger = createLogger();
 
+const TOOL_TIMEOUT_MS = 60_000;
+
 const EXCLUDED_TOOLS = ["kintone-download-file"];
 
 export function formatKintoneError(error: KintoneRestAPIError): string {
@@ -36,7 +38,15 @@ function wrapWithErrorHandling(toolName: string, callback: any): any {
   return async (...args: any[]) => {
     const start = Date.now();
     try {
-      const result = await callback(...args);
+      const result = await Promise.race([
+        callback(...args),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("kintone API call timed out")),
+            TOOL_TIMEOUT_MS,
+          ),
+        ),
+      ]);
       logger.debug("kintone_api_call", {
         tool: toolName,
         durationMs: Date.now() - start,
