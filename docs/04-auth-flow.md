@@ -79,6 +79,19 @@ JWEトークンに暗号化されるペイロードの形式:
 > ユーザーが同じサーバーを共有できる柔軟性を優先した。将来的に、環境変数
 > `ALLOWED_KINTONE_HOSTS` で接続先を制限するオプションを追加することも検討可能。
 
+#### baseUrl のバリデーションルール
+
+トークン発行時に `baseUrl` に対して以下のバリデーションを行う:
+
+- **HTTPS必須** — `baseUrl` は `https://` スキームでなければならない
+- **プライベート/内部アドレス拒否** — SSRF防止のため、以下のアドレスは拒否される:
+  - `localhost`, `0.0.0.0`, `[::1]`
+  - `127.0.0.0/8` (loopback)
+  - `10.0.0.0/8` (プライベートクラスA)
+  - `172.16.0.0/12` (プライベートクラスB)
+  - `192.168.0.0/16` (プライベートクラスC)
+  - `0.0.0.0/8`
+
 ### 暗号化（トークン発行時）
 
 ```typescript
@@ -228,12 +241,14 @@ JWE_SECRET_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ### 共通鍵のimport
 
 ```typescript
-import { importJWK } from "jose";
-
 // Base64エンコードされた鍵文字列から CryptoKey を生成
-const secretKey = await importJWK(
-  { kty: "oct", k: base64urlEncode(secretKeyBytes) },
-  "A256GCM",
+const keyBytes = Buffer.from(base64EncodedKey, "base64");
+const secretKey = await crypto.subtle.importKey(
+  "raw",
+  keyBytes,
+  { name: "AES-GCM", length: 256 },
+  false,
+  ["encrypt", "decrypt"],
 );
 ```
 
