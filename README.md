@@ -10,7 +10,7 @@
 
 **未対応の機能**
 
-- APIトークン、Basic認証、クライアント証明書、などには対応していません。
+- 2要素認証、APIトークン、Basic認証、クライアント証明書、などには対応していません。ID+パスワード認証でのみ利用できます。
 - 添付ファイルのダウンロードには対応していません。
 
 # 使い方
@@ -27,8 +27,10 @@ npm install
 npm start
 
 # Dockerを使う場合
-docker run -p 3000:3000 ghcr.io/macrat/remote-kintone-mcp-server
+docker run -p 3000:3000 -e JWE_SECRET_KEY="your-secret-key" ghcr.io/macrat/remote-kintone-mcp-server
 ```
+
+※ HTTPSの設定を強く推奨します。
 
 ## クライアントを設定する
 
@@ -36,9 +38,11 @@ ToDo: ここにClaude DesktopやClaude Codeの場合の設定例を書く。
 
 ```json
 {
-    "mcpServer": {
-        "url": "http://your-server-address:3000",
-    },
+    "mcpServers": {
+        "kintone": {
+            "url": "https://your-server-address:3000/mcp"
+        }
+    }
 }
 ```
 
@@ -46,7 +50,7 @@ ToDo: ここにClaude DesktopやClaude Codeの場合の設定例を書く。
 
 このMCPサーバーは、Streamable HTTP方式のMCPサーバーとして起動し、受け取ったリクエストを公式MCPサーバーのコードに転送しています。
 このとき必要になるログイン情報は、OAuth風の認証フローを実装して、ユーザー本人に入力してもらっています。
-入力してもらったログイン情報はJWT形式の公開鍵暗号で暗号化されてトークンとして利用されます。
+入力してもらったログイン情報はJWE形式で暗号化されてトークンとして利用されます。
 MCPサーバーは受け取ったトークンを復号してログイン情報を取得し、公式MCPサーバーへ伝える仕組みになっています。
 このようにすることで、ユーザーは自分のアカウントでログインしてMCPサーバーを利用できます。
 
@@ -74,5 +78,5 @@ sequenceDiagram
     end
 ```
 
-公開鍵暗号方式で暗号化されてはいますが、ログインID/パスワードがMCPクライアントに保存されることに注意してください。
+暗号化されてはいますが、ログインID/パスワードがMCPクライアントに保存されることに注意してください。
 信頼しているクライアントでのみ利用することをおすすめします。
