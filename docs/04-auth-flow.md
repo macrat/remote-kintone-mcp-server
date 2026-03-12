@@ -67,30 +67,26 @@ JWEトークンに暗号化されるペイロードの形式:
 
 | フィールド | 型 | 説明 |
 |-----------|---|------|
-| `baseUrl` | `string` | kintone環境のベースURL |
+| `baseUrl` | `string` | kintone環境のベースURL（サーバーがサブドメインから `https://{subdomain}.cybozu.com` を構築） |
 | `username` | `string` | kintoneのログインID |
 | `password` | `string` | kintoneのパスワード |
 | `iat` | `number` | 発行日時（Unix timestamp） |
 | `exp` | `number` | 有効期限（Unix timestamp、デフォルト: `iat` + 24時間、環境変数 `SESSION_EXPIRY_HOURS` で変更可能） |
 
-> **設計判断: `baseUrl` をユーザー入力とする理由**
+> **設計判断: サブドメイン入力方式を採用した理由**
 >
-> ベースURLをサーバー設定で固定する案も検討したが、異なるkintone環境を使う
-> ユーザーが同じサーバーを共有できる柔軟性を優先した。将来的に、環境変数
-> `ALLOWED_KINTONE_HOSTS` で接続先を制限するオプションを追加することも検討可能。
+> 完全なURLをユーザーに入力させる方式から、サブドメイン部分のみを入力させる方式に変更した。
+> サーバー側で `https://{subdomain}.cybozu.com` を構築することで、Cybozu社のドメインにしか
+> 接続できなくなり、SSRFリスクを設計レベルで排除している。異なるkintone環境を使うユーザーが
+> 同じサーバーを共有できる柔軟性は維持している。
 
-#### baseUrl のバリデーションルール
+#### サブドメインのバリデーションルール
 
-トークン発行時に `baseUrl` に対して以下のバリデーションを行う:
+ログインフォームではサブドメインのみを入力させ、サーバー側で `https://{subdomain}.cybozu.com` を構築する。
 
-- **HTTPS必須** — `baseUrl` は `https://` スキームでなければならない
-- **プライベート/内部アドレス拒否** — SSRF防止のため、以下のアドレスは拒否される:
-  - `localhost`, `0.0.0.0`, `[::1]`
-  - `127.0.0.0/8` (loopback)
-  - `10.0.0.0/8` (プライベートクラスA)
-  - `172.16.0.0/12` (プライベートクラスB)
-  - `192.168.0.0/16` (プライベートクラスC)
-  - `0.0.0.0/8`
+- **サブドメイン形式チェック** — `/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/` に一致する必要がある
+- **URL自動抽出** — `https://example.cybozu.com` や `example.cybozu.com` 形式の入力を検出し、サブドメイン部分を自動抽出する
+- **SSRF防止** — ドメインが `.cybozu.com` に固定されるため、プライベートアドレスへのアクセスは設計上不可能
 
 ### 暗号化（トークン発行時）
 
@@ -182,7 +178,7 @@ sequenceDiagram
     Server-->>Browser: ログイン画面HTML
 
     Note over User, Server: 5. ユーザー認証
-    User->>Browser: kintoneベースURL, ログインID, パスワード入力
+    User->>Browser: kintoneサブドメイン, ログインID, パスワード入力
     Browser->>Server: POST /authorize (フォーム送信)
     Server->>Server: クレデンシャルをJWE暗号化<br>認可コードとして一時保存
     Server-->>Browser: redirect_uri にリダイレクト<br>（?code=認可コード）

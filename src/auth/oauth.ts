@@ -140,7 +140,7 @@ oauthApp.get("/authorize", (c) => {
 // Authorization Endpoint (POST - process login form)
 oauthApp.post("/authorize", async (c) => {
   const form = await c.req.parseBody();
-  const baseUrl = form.base_url;
+  let subdomain = form.subdomain;
   const username = form.username;
   const password = form.password;
   const clientId = form.client_id;
@@ -149,14 +149,14 @@ oauthApp.post("/authorize", async (c) => {
   const state = form.state;
 
   if (
-    typeof baseUrl !== "string" ||
+    typeof subdomain !== "string" ||
     typeof username !== "string" ||
     typeof password !== "string" ||
     typeof clientId !== "string" ||
     typeof redirectUri !== "string" ||
     typeof codeChallenge !== "string" ||
     typeof state !== "string" ||
-    !baseUrl ||
+    !subdomain ||
     !username ||
     !password ||
     !clientId ||
@@ -194,11 +194,22 @@ oauthApp.post("/authorize", async (c) => {
     );
   }
 
-  let jwe: string;
-  try {
-    jwe = await encrypt({ baseUrl, username, password });
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
+  // Trim whitespace
+  subdomain = subdomain.trim();
+
+  // Auto-extract subdomain from pasted URLs (e.g. "https://example.cybozu.com" or "example.cybozu.com")
+  const cybozuUrlMatch = subdomain.match(
+    /^(?:https?:\/\/)?([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)\.cybozu\.com(?:[:/].*)?$/i,
+  );
+  if (cybozuUrlMatch) {
+    subdomain = cybozuUrlMatch[1];
+  }
+
+  // Validate subdomain format
+  const subdomainPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/;
+  if (!subdomainPattern.test(subdomain) || subdomain.length > 63) {
+    const errorMessage =
+      "サブドメインは英数字とハイフンのみ使用でき、63文字以内で入力してください（例: example）。cybozu.com のサブドメインのみ接続できます";
     const html = renderLoginPage({
       clientId,
       redirectUri,
@@ -206,7 +217,28 @@ oauthApp.post("/authorize", async (c) => {
       codeChallengeMethod: "S256",
       state,
       errorMessage,
-      values: { baseUrl, username },
+      values: { subdomain, username },
+    });
+    c.header("X-Frame-Options", "DENY");
+    c.header("Content-Security-Policy", "frame-ancestors 'none'");
+    return c.html(html, 400);
+  }
+
+  const baseUrl = `https://${subdomain}.cybozu.com`;
+
+  let jwe: string;
+  try {
+    jwe = await encrypt({ baseUrl, username, password });
+  } catch {
+    const errorMessage = "認証情報の処理中にエラーが発生しました";
+    const html = renderLoginPage({
+      clientId,
+      redirectUri,
+      codeChallenge,
+      codeChallengeMethod: "S256",
+      state,
+      errorMessage,
+      values: { subdomain, username },
     });
     c.header("X-Frame-Options", "DENY");
     c.header("Content-Security-Policy", "frame-ancestors 'none'");

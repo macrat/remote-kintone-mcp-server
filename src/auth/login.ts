@@ -5,7 +5,7 @@ export function renderLoginPage(params: {
   codeChallengeMethod: string;
   state: string;
   errorMessage?: string;
-  values?: { baseUrl?: string; username?: string };
+  values?: { subdomain?: string; username?: string };
 }): string {
   const escapeHtml = (s: string) =>
     s
@@ -19,8 +19,11 @@ export function renderLoginPage(params: {
     ? `<div role="alert" style="background:#fef2f2;border:1px solid #ef4444;color:#b91c1c;padding:0.75rem;border-radius:4px;margin-bottom:1rem;font-size:0.875rem;">${escapeHtml(params.errorMessage)}</div>`
     : "";
 
-  const baseUrlValue = params.values?.baseUrl
-    ? ` value="${escapeHtml(params.values.baseUrl)}"`
+  const hasError = !!params.errorMessage;
+  const ariaInvalid = hasError ? ' aria-invalid="true"' : "";
+
+  const subdomainValue = params.values?.subdomain
+    ? ` value="${escapeHtml(params.values.subdomain)}"`
     : "";
   const usernameValue = params.values?.username
     ? ` value="${escapeHtml(params.values.username)}"`
@@ -43,6 +46,10 @@ button { width: 100%; padding: 0.75rem; background: #0071c5; color: #fff; border
 button:hover { background: #005a9e; }
 button:focus-visible { outline: 2px solid #0071c5; outline-offset: 2px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.subdomain-input { display: flex; align-items: center; margin-bottom: 1rem; gap: 0; }
+.subdomain-input .prefix { font-size: 1rem; color: #555; white-space: nowrap; }
+.subdomain-input input { margin-bottom: 0; border-radius: 4px; min-width: 0; }
+.subdomain-input .suffix { font-size: 1rem; color: #555; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -54,9 +61,9 @@ ${errorHtml}<form method="POST" action="/authorize" aria-label="kintone ログ�
 <input type="hidden" name="code_challenge" value="${escapeHtml(params.codeChallenge)}">
 <input type="hidden" name="code_challenge_method" value="${escapeHtml(params.codeChallengeMethod)}">
 <input type="hidden" name="state" value="${escapeHtml(params.state)}">
-<label for="base_url">kintone ベースURL</label>
-<span id="base_url_desc" class="sr-only">例: https://example.cybozu.com</span>
-<input type="url" id="base_url" name="base_url" placeholder="https://example.cybozu.com" required autofocus autocomplete="url" aria-describedby="base_url_desc"${baseUrlValue}>
+<label for="subdomain">サブドメイン</label>
+<span id="subdomain_desc" class="sr-only">例: example（https://example.cybozu.com の場合）</span>
+<div class="subdomain-input"><span class="prefix">https://</span><input type="text" id="subdomain" name="subdomain" placeholder="example" required autofocus autocomplete="off" maxlength="63" aria-describedby="subdomain_desc"${ariaInvalid}${subdomainValue}><span class="suffix">.cybozu.com</span></div>
 <label for="username">ログインID</label>
 <input type="text" id="username" name="username" required autocomplete="username"${usernameValue}>
 <label for="password">パスワード</label>
@@ -64,6 +71,20 @@ ${errorHtml}<form method="POST" action="/authorize" aria-label="kintone ログ�
 <button type="submit" aria-label="kintone にログイン">ログイン</button>
 </form>
 </div>
+<script>
+(function(){
+  var input = document.getElementById("subdomain");
+  if (!input) return;
+  input.addEventListener("paste", function(e) {
+    var text = (e.clipboardData || window.clipboardData).getData("text");
+    var m = text.match(/^(?:https?:\\/\\/)?([a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)\\x2ecybozu\\x2ecom(?:[\\/:].*)?$/i);
+    if (m) {
+      e.preventDefault();
+      input.value = m[1];
+    }
+  });
+})();
+</script>
 </body>
 </html>`;
 }

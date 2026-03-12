@@ -30,8 +30,10 @@ describe("escapeHtml", () => {
       state: '<script>alert("xss")</script>',
     });
 
-    expect(html).not.toContain("<script>");
-    expect(html).not.toContain("</script>");
+    // User input should be escaped in hidden field values
+    expect(html).toContain(
+      'value="&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;"',
+    );
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("&lt;/script&gt;");
     expect(html).toContain("alert(&quot;xss&quot;)");
@@ -82,14 +84,80 @@ describe("renderLoginPage", () => {
     expect(html).toContain('value="method&#39;quote"');
     expect(html).toContain('value="state&amp;&quot;&#39;&lt;&gt;all"');
   });
+
+  it("displays .cybozu.com suffix after subdomain input", () => {
+    const html = renderLoginPage(defaultParams);
+
+    expect(html).toContain(".cybozu.com");
+    expect(html).toContain("https://");
+    expect(html).toContain('class="subdomain-input"');
+  });
+
+  it("subdomain input has maxlength=63 (DNS label limit)", () => {
+    const html = renderLoginPage(defaultParams);
+
+    expect(html).toMatch(/id="subdomain"[^>]*maxlength="63"/);
+  });
+
+  it("prefix and suffix font size matches input font size", () => {
+    const html = renderLoginPage(defaultParams);
+
+    // prefix and suffix should use 1rem to match input font-size
+    expect(html).toMatch(
+      /\.subdomain-input .prefix\s*\{[^}]*font-size:\s*1rem/,
+    );
+    expect(html).toMatch(
+      /\.subdomain-input .suffix\s*\{[^}]*font-size:\s*1rem/,
+    );
+  });
+
+  it("includes client-side JavaScript for subdomain auto-extraction on paste", () => {
+    const html = renderLoginPage(defaultParams);
+
+    expect(html).toContain("<script>");
+    expect(html).toContain("paste");
+    expect(html).toContain("cybozu.com");
+  });
+
+  it("sets aria-invalid on subdomain input when errorMessage is present", () => {
+    const html = renderLoginPage({
+      ...defaultParams,
+      errorMessage: "無効なサブドメインです",
+      values: { subdomain: "-invalid", username: "test" },
+    });
+
+    expect(html).toMatch(/id="subdomain"[^>]*aria-invalid="true"/);
+  });
+
+  it("does not set aria-invalid on subdomain input when no error", () => {
+    const html = renderLoginPage(defaultParams);
+
+    expect(html).not.toContain('aria-invalid="true"');
+  });
+
+  it("preserves subdomain and username values in the re-displayed form", () => {
+    const html = renderLoginPage({
+      ...defaultParams,
+      values: { subdomain: "my-company", username: "taro" },
+    });
+
+    expect(html).toMatch(/id="subdomain"[^>]*value="my-company"/);
+    expect(html).toMatch(/id="username"[^>]*value="taro"/);
+  });
+
+  it("subdomain-input does not overflow on narrow viewports (min-width: 0 on input)", () => {
+    const html = renderLoginPage(defaultParams);
+
+    expect(html).toMatch(/\.subdomain-input input\s*\{[^}]*min-width:\s*0/);
+  });
 });
 
-describe("accessibility: base_url_desc helper text", () => {
+describe("accessibility: subdomain_desc helper text", () => {
   const html = renderLoginPage(defaultParams);
 
-  it("span#base_url_desc does NOT have display:none style", () => {
+  it("span#subdomain_desc does NOT have display:none style", () => {
     expect(html).not.toMatch(
-      /id="base_url_desc"[^>]*style="[^"]*display:\s*none[^"]*"/,
+      /id="subdomain_desc"[^>]*style="[^"]*display:\s*none[^"]*"/,
     );
   });
 
@@ -101,10 +169,14 @@ describe("accessibility: base_url_desc helper text", () => {
     expect(html).toMatch(/\.sr-only\s*\{[^}]*clip:\s*rect\(0/);
   });
 
-  it("span#base_url_desc uses the sr-only class without inline display:none", () => {
-    expect(html).toMatch(/id="base_url_desc"[^>]*class="[^"]*sr-only[^"]*"/);
+  it("span#subdomain_desc uses the sr-only class without inline display:none", () => {
+    expect(html).toMatch(/id="subdomain_desc"[^>]*class="[^"]*sr-only[^"]*"/);
     expect(html).not.toMatch(
-      /id="base_url_desc"[^>]*style="[^"]*display:\s*none[^"]*"/,
+      /id="subdomain_desc"[^>]*style="[^"]*display:\s*none[^"]*"/,
     );
+  });
+
+  it("sr-only text describes subdomain example", () => {
+    expect(html).toContain("例: example（https://example.cybozu.com の場合）");
   });
 });

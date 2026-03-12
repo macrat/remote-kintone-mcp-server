@@ -113,7 +113,7 @@ claude mcp add --transport http kintone https://your-server-address:3000/mcp
 #### 初回接続時の認証
 
 初回接続時にブラウザが開き、ログイン画面が表示されます。
-kintone環境のURL・ログインID・パスワードを入力すると認証が完了し、MCPサーバーが利用可能になります。
+kintoneのサブドメイン（例: `example` と入力すると `https://example.cybozu.com` に接続）・ログインID・パスワードを入力すると認証が完了し、MCPサーバーが利用可能になります。
 認証トークンの有効期限はデフォルトで24時間です（環境変数 `SESSION_EXPIRY_HOURS` で変更可能）。期限が切れた場合は再度ログインが必要です。
 
 ## 仕組み

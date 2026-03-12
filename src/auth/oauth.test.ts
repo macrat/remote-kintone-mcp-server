@@ -92,7 +92,7 @@ describe("OAuth endpoints", () => {
 
       // 4. POST /authorize (submit login form)
       const formData = new URLSearchParams({
-        base_url: "https://example.cybozu.com",
+        subdomain: "example",
         username: "test-user",
         password: "test-password",
         client_id,
@@ -159,7 +159,7 @@ describe("OAuth endpoints", () => {
 
       // POST /authorize
       const formData = new URLSearchParams({
-        base_url: "https://example.cybozu.com",
+        subdomain: "example",
         username: "test-user",
         password: "test-password",
         client_id,
@@ -217,7 +217,7 @@ describe("OAuth endpoints", () => {
 
       // POST /authorize
       const formData = new URLSearchParams({
-        base_url: "https://example.cybozu.com",
+        subdomain: "example",
         username: "test-user",
         password: "test-password",
         client_id,
@@ -275,7 +275,7 @@ describe("OAuth endpoints", () => {
 
       // POST /authorize
       const formData = new URLSearchParams({
-        base_url: "https://example.cybozu.com",
+        subdomain: "example",
         username: "test-user",
         password: "test-password",
         client_id,
@@ -390,7 +390,7 @@ describe("OAuth endpoints", () => {
       const { verifier, challenge } = await generatePKCE();
 
       const formData = new URLSearchParams({
-        base_url: "https://example.cybozu.com",
+        subdomain: "example",
         username: "test-user",
         password: "test-password",
         client_id,
@@ -530,7 +530,7 @@ describe("OAuth endpoints", () => {
 
       // Authorize
       const formData = new URLSearchParams({
-        base_url: "https://example.cybozu.com",
+        subdomain: "example",
         username: "test-user",
         password: "test-password",
         client_id,
@@ -589,7 +589,7 @@ describe("OAuth endpoints", () => {
     });
   });
 
-  describe("POST /authorize baseUrl validation errors (issue #4)", () => {
+  describe("POST /authorize subdomain validation", () => {
     // Helper: register a client and generate PKCE challenge
     async function registerClientAndPKCE() {
       const regRes = await oauthApp.request("/register", {
@@ -604,14 +604,14 @@ describe("OAuth endpoints", () => {
       return { client_id, client_secret, verifier, challenge };
     }
 
-    // Helper: POST /authorize with given base_url
+    // Helper: POST /authorize with given subdomain
     async function postAuthorize(
-      baseUrl: string,
+      subdomain: string,
       clientId: string,
       challenge: string,
     ) {
       const formData = new URLSearchParams({
-        base_url: baseUrl,
+        subdomain,
         username: "test-user",
         password: "test-password",
         client_id: clientId,
@@ -631,91 +631,152 @@ describe("OAuth endpoints", () => {
       });
     }
 
-    it("should return HTML error page (not 500) when baseUrl uses HTTP instead of HTTPS", async () => {
+    it("rejects subdomain starting with hyphen", async () => {
       const { client_id, challenge } = await registerClientAndPKCE();
-
-      const res = await postAuthorize(
-        "http://example.com",
-        client_id,
-        challenge,
-      );
-
-      // Should NOT be a 500 server error
-      expect(res.status).not.toBe(500);
-      // Should return HTML
-      const contentType = res.headers.get("content-type") ?? "";
-      expect(contentType).toContain("text/html");
-      // Should contain the error message
+      const res = await postAuthorize("-start", client_id, challenge);
+      expect(res.status).toBe(400);
       const html = await res.text();
-      expect(html).toContain("HTTPS");
-      // Should re-display the login form
-      expect(html).toContain("kintone");
+      expect(html).toContain("サブドメインは英数字とハイフンのみ");
       expect(html).toContain("form");
     });
 
-    it("should return HTML error page when baseUrl is a private address (localhost)", async () => {
+    it("rejects subdomain ending with hyphen", async () => {
       const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize("end-", client_id, challenge);
+      expect(res.status).toBe(400);
+      const html = await res.text();
+      expect(html).toContain("サブドメインは英数字とハイフンのみ");
+    });
 
+    it("rejects subdomain with spaces", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize("has spaces", client_id, challenge);
+      expect(res.status).toBe(400);
+      const html = await res.text();
+      expect(html).toContain("サブドメインは英数字とハイフンのみ");
+    });
+
+    it("rejects subdomain with dots", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize("has.dots", client_id, challenge);
+      expect(res.status).toBe(400);
+      const html = await res.text();
+      expect(html).toContain("サブドメインは英数字とハイフンのみ");
+    });
+
+    it("auto-extracts subdomain from https://example.cybozu.com URL", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
       const res = await postAuthorize(
-        "https://localhost",
+        "https://example.cybozu.com",
         client_id,
         challenge,
       );
-
-      expect(res.status).not.toBe(500);
-      const contentType = res.headers.get("content-type") ?? "";
-      expect(contentType).toContain("text/html");
-      const html = await res.text();
-      expect(html).toContain("private");
-      expect(html).toContain("kintone");
-      expect(html).toContain("form");
+      expect(res.status).toBe(302);
     });
 
-    it("should return HTML error page when baseUrl is a private IPv4 address", async () => {
+    it("auto-extracts subdomain from example.cybozu.com (no scheme)", async () => {
       const { client_id, challenge } = await registerClientAndPKCE();
-
       const res = await postAuthorize(
-        "https://192.168.1.1",
+        "example.cybozu.com",
         client_id,
         challenge,
       );
-
-      expect(res.status).not.toBe(500);
-      const contentType = res.headers.get("content-type") ?? "";
-      expect(contentType).toContain("text/html");
-      const html = await res.text();
-      expect(html).toContain("private");
-      expect(html).toContain("kintone");
-      expect(html).toContain("form");
+      expect(res.status).toBe(302);
     });
 
-    it("should return HTML error page when baseUrl is not a valid URL", async () => {
+    it("rejects URL from a different domain", async () => {
       const { client_id, challenge } = await registerClientAndPKCE();
-
-      const res = await postAuthorize("not-a-url", client_id, challenge);
-
-      expect(res.status).not.toBe(500);
-      const contentType = res.headers.get("content-type") ?? "";
-      expect(contentType).toContain("text/html");
-      const html = await res.text();
-      expect(html).toContain("kintone");
-      expect(html).toContain("form");
-    });
-
-    it("should preserve previously entered values in the re-displayed form", async () => {
-      const { client_id, challenge } = await registerClientAndPKCE();
-
       const res = await postAuthorize(
-        "http://example.com",
+        "https://example.kintone.com",
         client_id,
         challenge,
       );
-
-      expect(res.status).not.toBe(500);
+      expect(res.status).toBe(400);
       const html = await res.text();
-      // The form should contain the previously entered base_url so the user can correct it
-      expect(html).toContain("http://example.com");
-      // The form should contain the previously entered username
+      expect(html).toContain("サブドメインは英数字とハイフンのみ");
+    });
+
+    it("accepts single-character subdomain", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize("a", client_id, challenge);
+      expect(res.status).toBe(302);
+    });
+
+    it("accepts subdomain with hyphens in the middle", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize("my-company", client_id, challenge);
+      expect(res.status).toBe(302);
+    });
+
+    it("rejects subdomain exceeding 63 characters (DNS label limit)", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const longSubdomain = "a".repeat(64);
+      const res = await postAuthorize(longSubdomain, client_id, challenge);
+      expect(res.status).toBe(400);
+      const html = await res.text();
+      expect(html).toContain("サブドメイン");
+    });
+
+    it("auto-extracts subdomain from URL with uppercase domain (case-insensitive)", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize(
+        "https://example.CYBOZU.COM",
+        client_id,
+        challenge,
+      );
+      expect(res.status).toBe(302);
+    });
+
+    it("auto-extracts subdomain from URL with path", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize(
+        "https://example.cybozu.com/k/1",
+        client_id,
+        challenge,
+      );
+      expect(res.status).toBe(302);
+    });
+
+    it("auto-extracts subdomain from URL with port", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize(
+        "https://example.cybozu.com:443",
+        client_id,
+        challenge,
+      );
+      expect(res.status).toBe(302);
+    });
+
+    it("trims whitespace from subdomain input", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize(" example ", client_id, challenge);
+      expect(res.status).toBe(302);
+    });
+
+    it("rejects whitespace-only subdomain input", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize("   ", client_id, challenge);
+      expect(res.status).toBe(400);
+    });
+
+    it("shows specific error for non-cybozu.com domain URL", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize(
+        "https://example.kintone.com",
+        client_id,
+        challenge,
+      );
+      expect(res.status).toBe(400);
+      const html = await res.text();
+      expect(html).toContain("cybozu.com");
+    });
+
+    it("should preserve previously entered subdomain value in the re-displayed form", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+      const res = await postAuthorize("-invalid", client_id, challenge);
+      expect(res.status).toBe(400);
+      const html = await res.text();
+      expect(html).toContain("-invalid");
       expect(html).toContain("test-user");
     });
   });

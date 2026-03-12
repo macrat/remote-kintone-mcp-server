@@ -37,66 +37,6 @@ export function resetKeyCache(): void {
   cachedKey = null;
 }
 
-function isPrivateIPv4(hostname: string): boolean {
-  const ipv4 = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
-  if (ipv4) {
-    const [, a, b] = ipv4.map(Number);
-    if (a === 127) return true; // 127.0.0.0/8
-    if (a === 10) return true; // 10.0.0.0/8
-    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
-    if (a === 192 && b === 168) return true; // 192.168.0.0/16
-    if (a === 169 && b === 254) return true; // 169.254.0.0/16 (link-local, cloud metadata)
-    if (a === 0) return true; // 0.0.0.0/8
-  }
-  return false;
-}
-
-function isPrivateHost(hostname: string): boolean {
-  if (hostname === "localhost" || hostname === "0.0.0.0") {
-    return true;
-  }
-
-  // IPv4 private ranges
-  if (isPrivateIPv4(hostname)) return true;
-
-  // IPv6: strip brackets if present (URL parser wraps IPv6 in brackets)
-  if (hostname.startsWith("[") && hostname.endsWith("]")) {
-    const ipv6 = hostname.slice(1, -1).toLowerCase();
-
-    // Unspecified address
-    if (ipv6 === "::") return true;
-
-    // Loopback (::1 in any expanded form — URL parser normalizes to ::1)
-    if (ipv6 === "::1" || ipv6 === "0000:0000:0000:0000:0000:0000:0000:0001") {
-      return true;
-    }
-
-    // Link-local (fe80::/10)
-    if (ipv6.startsWith("fe80:") || ipv6.startsWith("fe80%")) return true;
-
-    // ULA (fc00::/7 — fc and fd prefixes)
-    if (ipv6.startsWith("fc") || ipv6.startsWith("fd")) return true;
-
-    // IPv4-mapped IPv6 (::ffff:x.x.x.x or ::ffff:HHHH:HHHH)
-    const v4mappedDotted = ipv6.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (v4mappedDotted) {
-      return isPrivateIPv4(v4mappedDotted[1]);
-    }
-    const v4mappedHex = ipv6.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-    if (v4mappedHex) {
-      const hi = Number.parseInt(v4mappedHex[1], 16);
-      const lo = Number.parseInt(v4mappedHex[2], 16);
-      const a = (hi >> 8) & 0xff;
-      const b = hi & 0xff;
-      const c = (lo >> 8) & 0xff;
-      const d = lo & 0xff;
-      return isPrivateIPv4(`${a}.${b}.${c}.${d}`);
-    }
-  }
-
-  return false;
-}
-
 function validateBaseUrl(url: string): void {
   let parsed: URL;
   try {
@@ -106,9 +46,6 @@ function validateBaseUrl(url: string): void {
   }
   if (parsed.protocol !== "https:") {
     throw new Error("baseUrl must use HTTPS");
-  }
-  if (isPrivateHost(parsed.hostname)) {
-    throw new Error("baseUrl must not point to a private/internal address");
   }
 }
 
