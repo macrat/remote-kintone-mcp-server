@@ -51,6 +51,7 @@ export function startCleanup(): void {
       }
     }
   }, 60 * 1000); // every 1 minute
+  cleanupTimer.unref();
 }
 
 export function stopCleanup(): void {
