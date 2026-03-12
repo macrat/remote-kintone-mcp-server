@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { sanitize } from "./logger.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createLogger, sanitize } from "./logger.js";
 
 describe("sanitize", () => {
   it("redacts sensitive keys", () => {
@@ -72,5 +72,87 @@ describe("sanitize", () => {
     const data = { tags: ["a", "b", "c"] };
     const result = sanitize(data);
     expect(result.tags).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("createLogger", () => {
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    stdoutSpy = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    stderrSpy = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete process.env.LOG_LEVEL;
+  });
+
+  it("filters out info and debug when level is warn", () => {
+    const logger = createLogger("warn");
+
+    logger.info("should-not-appear");
+    logger.debug("should-not-appear");
+
+    expect(stdoutSpy).not.toHaveBeenCalled();
+    expect(stderrSpy).not.toHaveBeenCalled();
+  });
+
+  it("only error produces output when level is error", () => {
+    const logger = createLogger("error");
+
+    logger.warn("no-output");
+    logger.info("no-output");
+    logger.debug("no-output");
+
+    expect(stdoutSpy).not.toHaveBeenCalled();
+    expect(stderrSpy).not.toHaveBeenCalled();
+
+    logger.error("should-appear");
+
+    expect(stderrSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("defaults to info level when no override and no LOG_LEVEL env", () => {
+    delete process.env.LOG_LEVEL;
+    const logger = createLogger();
+
+    logger.info("visible");
+    expect(stdoutSpy).toHaveBeenCalledTimes(1);
+
+    logger.debug("invisible");
+    // debug should not add another call
+    expect(stdoutSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes error to stderr and warn to stdout", () => {
+    const logger = createLogger("warn");
+
+    logger.error("err-event");
+    expect(stderrSpy).toHaveBeenCalledTimes(1);
+    expect(stdoutSpy).not.toHaveBeenCalled();
+
+    logger.warn("warn-event");
+    expect(stdoutSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("outputs parseable JSON with timestamp, level, and event fields", () => {
+    const logger = createLogger("info");
+
+    logger.info("test-event", { key: "value" });
+
+    expect(stdoutSpy).toHaveBeenCalledTimes(1);
+
+    const raw = stdoutSpy.mock.calls[0][0] as string;
+    const parsed = JSON.parse(raw);
+
+    expect(parsed).toHaveProperty("timestamp");
+    expect(parsed.level).toBe("info");
+    expect(parsed.event).toBe("test-event");
   });
 });
