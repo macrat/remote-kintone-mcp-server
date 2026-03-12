@@ -56,30 +56,58 @@ oauthApp.get("/authorize", (c) => {
   const codeChallengeMethod = c.req.query("code_challenge_method");
   const state = c.req.query("state");
 
-  if (
-    !clientId ||
-    !redirectUri ||
-    !codeChallenge ||
-    !codeChallengeMethod ||
-    !state
-  ) {
-    return c.text("Missing required parameters", 400);
+  const missing = [
+    ["client_id", clientId],
+    ["redirect_uri", redirectUri],
+    ["code_challenge", codeChallenge],
+    ["code_challenge_method", codeChallengeMethod],
+    ["state", state],
+  ]
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+
+  if (missing.length > 0) {
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: `Missing required parameters: ${missing.join(", ")}`,
+      },
+      400,
+    );
   }
 
   // Verify client is registered
   const client = clients.get(clientId);
   if (!client) {
-    return c.text("Unknown client_id", 400);
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: "Unknown client_id",
+      },
+      400,
+    );
   }
 
   // Validate redirect_uri against registered URIs
   if (!client.metadata.redirect_uris.includes(redirectUri)) {
-    return c.text("Invalid redirect_uri", 400);
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: "Invalid redirect_uri",
+      },
+      400,
+    );
   }
 
   // Only S256 is supported
   if (codeChallengeMethod !== "S256") {
-    return c.text("Unsupported code_challenge_method", 400);
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: "Unsupported code_challenge_method",
+      },
+      400,
+    );
   }
 
   const html = renderLoginPage({
@@ -119,16 +147,34 @@ oauthApp.post("/authorize", async (c) => {
     !codeChallenge ||
     !state
   ) {
-    return c.text("Missing required parameters", 400);
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: "Missing required parameters",
+      },
+      400,
+    );
   }
 
   // Verify client is registered and redirect_uri is allowed
   const client = clients.get(clientId);
   if (!client) {
-    return c.text("Unknown client_id", 400);
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: "Unknown client_id",
+      },
+      400,
+    );
   }
   if (!client.metadata.redirect_uris.includes(redirectUri)) {
-    return c.text("Invalid redirect_uri", 400);
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: "Invalid redirect_uri",
+      },
+      400,
+    );
   }
 
   const jwe = await encrypt({ baseUrl, username, password });
