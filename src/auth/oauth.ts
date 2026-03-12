@@ -50,19 +50,15 @@ oauthApp.post("/register", async (c) => {
 
 // Authorization Endpoint (GET - show login form)
 oauthApp.get("/authorize", (c) => {
-  const clientId = c.req.query("client_id");
-  const redirectUri = c.req.query("redirect_uri");
-  const codeChallenge = c.req.query("code_challenge");
-  const codeChallengeMethod = c.req.query("code_challenge_method");
-  const state = c.req.query("state");
+  const rawParams = {
+    client_id: c.req.query("client_id"),
+    redirect_uri: c.req.query("redirect_uri"),
+    code_challenge: c.req.query("code_challenge"),
+    code_challenge_method: c.req.query("code_challenge_method"),
+    state: c.req.query("state"),
+  };
 
-  const missing = [
-    ["client_id", clientId],
-    ["redirect_uri", redirectUri],
-    ["code_challenge", codeChallenge],
-    ["code_challenge_method", codeChallengeMethod],
-    ["state", state],
-  ]
+  const missing = Object.entries(rawParams)
     .filter(([, v]) => !v)
     .map(([k]) => k);
 
@@ -75,6 +71,13 @@ oauthApp.get("/authorize", (c) => {
       400,
     );
   }
+
+  // All params are guaranteed non-empty strings after the check above
+  const clientId = rawParams.client_id as string;
+  const redirectUri = rawParams.redirect_uri as string;
+  const codeChallenge = rawParams.code_challenge as string;
+  const codeChallengeMethod = rawParams.code_challenge_method as string;
+  const state = rawParams.state as string;
 
   // Verify client is registered
   const client = clients.get(clientId);
