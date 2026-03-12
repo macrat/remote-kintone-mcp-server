@@ -17,7 +17,9 @@ const SENSITIVE_KEYS = [
   "api_token",
 ];
 
-function sanitize(data: Record<string, unknown>): Record<string, unknown> {
+export function sanitize(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (SENSITIVE_KEYS.includes(key.toLowerCase())) {
