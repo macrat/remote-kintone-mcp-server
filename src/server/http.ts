@@ -40,7 +40,11 @@ export function evictOldestSession(): void {
   if (oldestId) {
     const entry = sessions.get(oldestId);
     if (entry) {
-      entry.transport.close();
+      try {
+        entry.transport.close();
+      } catch {
+        // transport already closed or failed — safe to ignore
+      }
       sessions.delete(oldestId);
     }
   }
@@ -50,7 +54,11 @@ export function cleanupExpiredSessions(): void {
   const now = Date.now();
   for (const [id, entry] of sessions) {
     if (now - entry.lastAccessedAt > SESSION_TTL_MS) {
-      entry.transport.close();
+      try {
+        entry.transport.close();
+      } catch {
+        // transport already closed or failed — safe to ignore
+      }
       sessions.delete(id);
     }
   }
