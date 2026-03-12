@@ -329,6 +329,52 @@ describe("OAuth endpoints", () => {
     });
   });
 
+  describe("response_type validation (issue #7)", () => {
+    // Helper to register a client and build authorize URL params
+    async function registerAndBuildParams() {
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      const { client_id } = await regRes.json();
+      const { challenge } = await generatePKCE();
+      return { client_id, challenge };
+    }
+
+    it("should show login form when response_type=code", async () => {
+      const { client_id, challenge } = await registerAndBuildParams();
+      const res = await oauthApp.request(
+        `/authorize?response_type=code&client_id=${client_id}&redirect_uri=${encodeURIComponent("http://localhost:3000/callback")}&code_challenge=${challenge}&code_challenge_method=S256&state=test-state`,
+      );
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain("kintone ログイン");
+    });
+
+    it("should reject request when response_type is missing", async () => {
+      const { client_id, challenge } = await registerAndBuildParams();
+      const res = await oauthApp.request(
+        `/authorize?client_id=${client_id}&redirect_uri=${encodeURIComponent("http://localhost:3000/callback")}&code_challenge=${challenge}&code_challenge_method=S256&state=test-state`,
+      );
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("invalid_request");
+    });
+
+    it("should reject request when response_type=token", async () => {
+      const { client_id, challenge } = await registerAndBuildParams();
+      const res = await oauthApp.request(
+        `/authorize?response_type=token&client_id=${client_id}&redirect_uri=${encodeURIComponent("http://localhost:3000/callback")}&code_challenge=${challenge}&code_challenge_method=S256&state=test-state`,
+      );
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("invalid_request");
+    });
+  });
+
   describe("Authorization code premature consumption (issue #1)", () => {
     // Helper: register a client, generate PKCE, authorize, and return everything needed for token exchange
     async function setupAuthorizationCode() {

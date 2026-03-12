@@ -51,6 +51,7 @@ oauthApp.post("/register", async (c) => {
 // Authorization Endpoint (GET - show login form)
 oauthApp.get("/authorize", (c) => {
   const rawParams = {
+    response_type: c.req.query("response_type"),
     client_id: c.req.query("client_id"),
     redirect_uri: c.req.query("redirect_uri"),
     code_challenge: c.req.query("code_challenge"),
@@ -67,6 +68,17 @@ oauthApp.get("/authorize", (c) => {
       {
         error: "invalid_request",
         error_description: `Missing required parameters: ${missing.join(", ")}`,
+      },
+      400,
+    );
+  }
+
+  // Only response_type=code is supported
+  if (rawParams.response_type !== "code") {
+    return c.json(
+      {
+        error: "invalid_request",
+        error_description: "Unsupported response_type",
       },
       400,
     );
