@@ -11,7 +11,7 @@ const logger = createLogger();
 
 const EXCLUDED_TOOLS = ["kintone-download-file"];
 
-function formatKintoneError(error: KintoneRestAPIError): string {
+export function formatKintoneError(error: KintoneRestAPIError): string {
   if (error.status === 401) {
     return "Authentication failed. Please re-authenticate with kintone.";
   }

@@ -1,7 +1,10 @@
-import { KintoneRestAPIClient } from "@kintone/rest-api-client";
+import {
+  KintoneRestAPIClient,
+  KintoneRestAPIError,
+} from "@kintone/rest-api-client";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describe, expect, it, vi } from "vitest";
-import { registerKintoneTools } from "./tools.js";
+import { formatKintoneError, registerKintoneTools } from "./tools.js";
 
 describe("registerKintoneTools", () => {
   function createTestServer(): McpServer {
@@ -44,5 +47,51 @@ describe("registerKintoneTools", () => {
     registerKintoneTools(server, client);
 
     expect(spy.mock.calls.length).toBe(19);
+  });
+});
+
+describe("formatKintoneError", () => {
+  function makeError(
+    status: number,
+    message = "test error",
+  ): KintoneRestAPIError {
+    return new KintoneRestAPIError({
+      data: { id: "test-id", code: "TEST", message },
+      status,
+      statusText: "Error",
+      headers: {},
+    });
+  }
+
+  it("returns re-authentication message for 401", () => {
+    const result = formatKintoneError(makeError(401));
+    expect(result).toContain("re-authenticate");
+  });
+
+  it("returns permission denied message for 403", () => {
+    const result = formatKintoneError(makeError(403, "No access"));
+    expect(result).toContain("Permission denied");
+  });
+
+  it("returns not found message for 404", () => {
+    const result = formatKintoneError(makeError(404, "App not found"));
+    expect(result).toContain("Not found");
+  });
+
+  it("returns rate limit message for 429", () => {
+    const result = formatKintoneError(makeError(429));
+    expect(result).toContain("Rate limit");
+  });
+
+  it("returns server error message for 500", () => {
+    const result = formatKintoneError(makeError(500, "Internal error"));
+    expect(result).toContain("server error");
+    expect(result).toContain("500");
+  });
+
+  it("returns raw message for other status codes", () => {
+    const error = makeError(400, "Bad request");
+    const result = formatKintoneError(error);
+    expect(result).toContain("Bad request");
   });
 });
