@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server";
+import { startCleanup, stopCleanup } from "./auth/codes.js";
 import {
   app,
   sessions,
@@ -15,6 +16,7 @@ const server = serve({ fetch: app.fetch, port }, (info) => {
 });
 
 startSessionCleanup();
+startCleanup();
 
 let shuttingDown = false;
 
@@ -25,6 +27,7 @@ async function shutdown(signal: string): Promise<void> {
   logger.info("shutdown_start", { signal });
 
   stopSessionCleanup();
+  stopCleanup();
 
   // Close all active transports (notifies SSE clients)
   for (const [id, entry] of sessions) {
