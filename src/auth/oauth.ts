@@ -194,7 +194,24 @@ oauthApp.post("/authorize", async (c) => {
     );
   }
 
-  const jwe = await encrypt({ baseUrl, username, password });
+  let jwe: string;
+  try {
+    jwe = await encrypt({ baseUrl, username, password });
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    const html = renderLoginPage({
+      clientId,
+      redirectUri,
+      codeChallenge,
+      codeChallengeMethod: "S256",
+      state,
+      errorMessage,
+      values: { baseUrl, username },
+    });
+    c.header("X-Frame-Options", "DENY");
+    c.header("Content-Security-Policy", "frame-ancestors 'none'");
+    return c.html(html, 400);
+  }
 
   let code: string;
   try {

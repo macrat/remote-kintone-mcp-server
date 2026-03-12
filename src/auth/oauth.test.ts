@@ -588,4 +588,139 @@ describe("OAuth endpoints", () => {
       expect(body.token_type).toBe("Bearer");
     });
   });
+
+  describe("POST /authorize baseUrl validation errors (issue #4)", () => {
+    // Helper: register a client and generate PKCE challenge
+    async function registerClientAndPKCE() {
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      const { client_id, client_secret } = await regRes.json();
+      const { verifier, challenge } = await generatePKCE();
+      return { client_id, client_secret, verifier, challenge };
+    }
+
+    // Helper: POST /authorize with given base_url
+    async function postAuthorize(
+      baseUrl: string,
+      clientId: string,
+      challenge: string,
+    ) {
+      const formData = new URLSearchParams({
+        base_url: baseUrl,
+        username: "test-user",
+        password: "test-password",
+        client_id: clientId,
+        redirect_uri: "http://localhost:3000/callback",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "test-state",
+      });
+
+      return oauthApp.request("/authorize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+        redirect: "manual",
+      });
+    }
+
+    it("should return HTML error page (not 500) when baseUrl uses HTTP instead of HTTPS", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+
+      const res = await postAuthorize(
+        "http://example.com",
+        client_id,
+        challenge,
+      );
+
+      // Should NOT be a 500 server error
+      expect(res.status).not.toBe(500);
+      // Should return HTML
+      const contentType = res.headers.get("content-type") ?? "";
+      expect(contentType).toContain("text/html");
+      // Should contain the error message
+      const html = await res.text();
+      expect(html).toContain("HTTPS");
+      // Should re-display the login form
+      expect(html).toContain("kintone");
+      expect(html).toContain("form");
+    });
+
+    it("should return HTML error page when baseUrl is a private address (localhost)", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+
+      const res = await postAuthorize(
+        "https://localhost",
+        client_id,
+        challenge,
+      );
+
+      expect(res.status).not.toBe(500);
+      const contentType = res.headers.get("content-type") ?? "";
+      expect(contentType).toContain("text/html");
+      const html = await res.text();
+      expect(html).toContain("private");
+      expect(html).toContain("kintone");
+      expect(html).toContain("form");
+    });
+
+    it("should return HTML error page when baseUrl is a private IPv4 address", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+
+      const res = await postAuthorize(
+        "https://192.168.1.1",
+        client_id,
+        challenge,
+      );
+
+      expect(res.status).not.toBe(500);
+      const contentType = res.headers.get("content-type") ?? "";
+      expect(contentType).toContain("text/html");
+      const html = await res.text();
+      expect(html).toContain("private");
+      expect(html).toContain("kintone");
+      expect(html).toContain("form");
+    });
+
+    it("should return HTML error page when baseUrl is not a valid URL", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+
+      const res = await postAuthorize(
+        "not-a-url",
+        client_id,
+        challenge,
+      );
+
+      expect(res.status).not.toBe(500);
+      const contentType = res.headers.get("content-type") ?? "";
+      expect(contentType).toContain("text/html");
+      const html = await res.text();
+      expect(html).toContain("kintone");
+      expect(html).toContain("form");
+    });
+
+    it("should preserve previously entered values in the re-displayed form", async () => {
+      const { client_id, challenge } = await registerClientAndPKCE();
+
+      const res = await postAuthorize(
+        "http://example.com",
+        client_id,
+        challenge,
+      );
+
+      expect(res.status).not.toBe(500);
+      const html = await res.text();
+      // The form should contain the previously entered base_url so the user can correct it
+      expect(html).toContain("http://example.com");
+      // The form should contain the previously entered username
+      expect(html).toContain("test-user");
+    });
+  });
 });

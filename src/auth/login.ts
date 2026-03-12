@@ -4,6 +4,8 @@ export function renderLoginPage(params: {
   codeChallenge: string;
   codeChallengeMethod: string;
   state: string;
+  errorMessage?: string;
+  values?: { baseUrl?: string; username?: string };
 }): string {
   const escapeHtml = (s: string) =>
     s
@@ -12,6 +14,17 @@ export function renderLoginPage(params: {
       .replace(/'/g, "&#39;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+
+  const errorHtml = params.errorMessage
+    ? `<div role="alert" style="background:#fef2f2;border:1px solid #ef4444;color:#b91c1c;padding:0.75rem;border-radius:4px;margin-bottom:1rem;font-size:0.875rem;">${escapeHtml(params.errorMessage)}</div>`
+    : "";
+
+  const baseUrlValue = params.values?.baseUrl
+    ? ` value="${escapeHtml(params.values.baseUrl)}"`
+    : "";
+  const usernameValue = params.values?.username
+    ? ` value="${escapeHtml(params.values.username)}"`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -35,7 +48,7 @@ button:focus-visible { outline: 2px solid #0071c5; outline-offset: 2px; }
 <body>
 <div class="card">
 <h1>kintone ログイン</h1>
-<form method="POST" action="/authorize" aria-label="kintone ログインフォーム">
+${errorHtml}<form method="POST" action="/authorize" aria-label="kintone ログインフォーム">
 <input type="hidden" name="client_id" value="${escapeHtml(params.clientId)}">
 <input type="hidden" name="redirect_uri" value="${escapeHtml(params.redirectUri)}">
 <input type="hidden" name="code_challenge" value="${escapeHtml(params.codeChallenge)}">
@@ -43,9 +56,9 @@ button:focus-visible { outline: 2px solid #0071c5; outline-offset: 2px; }
 <input type="hidden" name="state" value="${escapeHtml(params.state)}">
 <label for="base_url">kintone ベースURL</label>
 <span id="base_url_desc" class="sr-only">例: https://example.cybozu.com</span>
-<input type="url" id="base_url" name="base_url" placeholder="https://example.cybozu.com" required autofocus autocomplete="url" aria-describedby="base_url_desc">
+<input type="url" id="base_url" name="base_url" placeholder="https://example.cybozu.com" required autofocus autocomplete="url" aria-describedby="base_url_desc"${baseUrlValue}>
 <label for="username">ログインID</label>
-<input type="text" id="username" name="username" required autocomplete="username">
+<input type="text" id="username" name="username" required autocomplete="username"${usernameValue}>
 <label for="password">パスワード</label>
 <input type="password" id="password" name="password" required autocomplete="current-password">
 <button type="submit" aria-label="kintone にログイン">ログイン</button>
