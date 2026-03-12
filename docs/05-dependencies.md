@@ -50,5 +50,3 @@ npm install -D typescript @types/node tsx
   "type": "module"
 }
 ```
-
-現在の `package.json` は `"type": "commonjs"` になっているため、変更が必要。
