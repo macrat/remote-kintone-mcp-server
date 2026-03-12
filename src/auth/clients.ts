@@ -31,6 +31,13 @@ export function register(metadata: ClientMetadata): ClientInfo {
     if (parsed.hash) {
       throw new Error("redirect_uri must not contain a fragment");
     }
+    const isLocalhost =
+      parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+    if (!isLocalhost && parsed.protocol !== "https:") {
+      throw new Error(
+        "redirect_uri must use HTTPS (HTTP is only allowed for localhost)",
+      );
+    }
   }
 
   const client_id = crypto.randomUUID();
