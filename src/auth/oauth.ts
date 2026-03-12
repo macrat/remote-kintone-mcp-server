@@ -54,6 +54,22 @@ oauthApp.get("/authorize", (c) => {
     return c.text("Missing required parameters", 400);
   }
 
+  // Verify client is registered
+  const client = clients.get(clientId);
+  if (!client) {
+    return c.text("Unknown client_id", 400);
+  }
+
+  // Validate redirect_uri against registered URIs
+  if (!client.metadata.redirect_uris.includes(redirectUri)) {
+    return c.text("Invalid redirect_uri", 400);
+  }
+
+  // Only S256 is supported
+  if (codeChallengeMethod !== "S256") {
+    return c.text("Unsupported code_challenge_method", 400);
+  }
+
   const html = renderLoginPage({
     clientId,
     redirectUri,
@@ -85,6 +101,15 @@ oauthApp.post("/authorize", async (c) => {
     !state
   ) {
     return c.text("Missing required parameters", 400);
+  }
+
+  // Verify client is registered and redirect_uri is allowed
+  const client = clients.get(clientId);
+  if (!client) {
+    return c.text("Unknown client_id", 400);
+  }
+  if (!client.metadata.redirect_uris.includes(redirectUri)) {
+    return c.text("Invalid redirect_uri", 400);
   }
 
   const jwe = await encrypt({ baseUrl, username, password });
