@@ -1,7 +1,14 @@
 import crypto from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
+import { decrypt } from "../auth/jwe.js";
+import { oauthApp } from "../auth/oauth.js";
+import { createKintoneClient } from "../kintone/client.js";
+import { registerKintoneTools } from "../kintone/tools.js";
+import { createLogger } from "./logger.js";
 import { createMcpServer } from "./mcp.js";
+
+const logger = createLogger();
 
 interface SessionEntry {
   transport: WebStandardStreamableHTTPServerTransport;
@@ -66,6 +73,9 @@ export function stopSessionCleanup(): void {
 
 export const app = new Hono();
 
+// Mount OAuth routes
+app.route("/", oauthApp);
+
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.post("/mcp", async (c) => {
@@ -81,6 +91,26 @@ app.post("/mcp", async (c) => {
       return c.json({ error: "Session not found" }, 404);
     }
   } else {
+    // New session: require Bearer token
+    const authHeader = c.req.header("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return c.json({ error: "Authorization required" }, 401);
+    }
+
+    const jweToken = authHeader.slice(7);
+    let credentials;
+    try {
+      credentials = await decrypt(jweToken);
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : "unknown";
+      logger.warn("token_decrypt_failed", { reason });
+      return c.json({ error: "Invalid or expired token" }, 401);
+    }
+
+    logger.info("login_success", { baseUrl: credentials.baseUrl });
+
+    const client = createKintoneClient(credentials);
+
     if (sessions.size >= MAX_SESSIONS) {
       evictOldestSession();
     }
@@ -92,14 +122,19 @@ app.post("/mcp", async (c) => {
           transport,
           lastAccessedAt: Date.now(),
         });
+        logger.debug("session_created", { sessionId: id });
       },
     });
 
     const server = createMcpServer();
+    registerKintoneTools(server, client);
     await server.connect(transport);
 
     transport.onclose = () => {
       if (transport.sessionId) {
+        logger.debug("session_deleted", {
+          sessionId: transport.sessionId,
+        });
         sessions.delete(transport.sessionId);
       }
     };
