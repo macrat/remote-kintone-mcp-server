@@ -113,9 +113,9 @@ describe("OAuth endpoints", () => {
       expect(authPostRes.status).toBe(302);
       const location = authPostRes.headers.get("location");
       expect(location).toBeDefined();
-      const redirectUrl = new URL(location!);
+      const redirectUrl = new URL(location ?? "");
       expect(redirectUrl.searchParams.get("state")).toBe("test-state");
-      const code = redirectUrl.searchParams.get("code")!;
+      const code = redirectUrl.searchParams.get("code") ?? "";
       expect(code).toBeDefined();
 
       // 5. POST /token (exchange code for token)
@@ -177,8 +177,8 @@ describe("OAuth endpoints", () => {
         body: formData.toString(),
         redirect: "manual",
       });
-      const location = authPostRes.headers.get("location")!;
-      const code = new URL(location).searchParams.get("code")!;
+      const location = authPostRes.headers.get("location") ?? "";
+      const code = new URL(location).searchParams.get("code") ?? "";
 
       // POST /token with wrong verifier
       const tokenData = new URLSearchParams({
@@ -235,8 +235,8 @@ describe("OAuth endpoints", () => {
         body: formData.toString(),
         redirect: "manual",
       });
-      const location = authPostRes.headers.get("location")!;
-      const code = new URL(location).searchParams.get("code")!;
+      const location = authPostRes.headers.get("location") ?? "";
+      const code = new URL(location).searchParams.get("code") ?? "";
 
       // POST /token with different redirect_uri
       const tokenData = new URLSearchParams({
@@ -293,8 +293,8 @@ describe("OAuth endpoints", () => {
         body: formData.toString(),
         redirect: "manual",
       });
-      const location = authPostRes.headers.get("location")!;
-      const code = new URL(location).searchParams.get("code")!;
+      const location = authPostRes.headers.get("location") ?? "";
+      const code = new URL(location).searchParams.get("code") ?? "";
 
       // First token exchange - should succeed
       const tokenData = new URLSearchParams({

@@ -10,12 +10,7 @@
       "Read(.env.example)",
       "Edit(.env.example)"
     ],
-    "deny": [
-      "Read(.env)",
-      "Edit(.env)"
-    ]
+    "deny": ["Read(.env)", "Edit(.env)"]
   },
-  "enabledMcpjsonServers": [
-    "kintone"
-  ]
+  "enabledMcpjsonServers": ["kintone"]
 }

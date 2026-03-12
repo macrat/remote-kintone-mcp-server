@@ -5,7 +5,7 @@ export function renderLoginPage(params: {
   codeChallengeMethod: string;
   state: string;
 }): string {
-  const escape = (s: string) =>
+  const escapeHtml = (s: string) =>
     s
       .replace(/&/g, "&amp;")
       .replace(/"/g, "&quot;")
@@ -35,11 +35,11 @@ button:focus-visible { outline: 2px solid #0071c5; outline-offset: 2px; }
 <div class="card">
 <h1>kintone ログイン</h1>
 <form method="POST" action="/authorize" aria-label="kintone ログインフォーム">
-<input type="hidden" name="client_id" value="${escape(params.clientId)}">
-<input type="hidden" name="redirect_uri" value="${escape(params.redirectUri)}">
-<input type="hidden" name="code_challenge" value="${escape(params.codeChallenge)}">
-<input type="hidden" name="code_challenge_method" value="${escape(params.codeChallengeMethod)}">
-<input type="hidden" name="state" value="${escape(params.state)}">
+<input type="hidden" name="client_id" value="${escapeHtml(params.clientId)}">
+<input type="hidden" name="redirect_uri" value="${escapeHtml(params.redirectUri)}">
+<input type="hidden" name="code_challenge" value="${escapeHtml(params.codeChallenge)}">
+<input type="hidden" name="code_challenge_method" value="${escapeHtml(params.codeChallengeMethod)}">
+<input type="hidden" name="state" value="${escapeHtml(params.state)}">
 <label for="base_url">kintone ベースURL</label>
 <span id="base_url_desc" class="sr-only" style="display:none;">例: https://example.cybozu.com</span>
 <input type="url" id="base_url" name="base_url" placeholder="https://example.cybozu.com" required autofocus autocomplete="url" aria-describedby="base_url_desc">

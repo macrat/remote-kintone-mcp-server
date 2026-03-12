@@ -109,6 +109,7 @@ describe("JWE encrypt/decrypt", () => {
   });
 
   it("throws when JWE_SECRET_KEY is not set", async () => {
+    // biome-ignore lint/performance/noDelete: process.env requires delete to truly remove a key
     delete process.env.JWE_SECRET_KEY;
     resetKeyCache();
 

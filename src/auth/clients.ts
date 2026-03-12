@@ -33,8 +33,7 @@ export function register(metadata: ClientMetadata): ClientInfo {
     }
     const isLocalhost =
       parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
-    const enforceHttps =
-      process.env.ALLOW_HTTP_REDIRECT !== "true";
+    const enforceHttps = process.env.ALLOW_HTTP_REDIRECT !== "true";
     if (enforceHttps && !isLocalhost && parsed.protocol !== "https:") {
       throw new Error(
         "redirect_uri must use HTTPS (HTTP is only allowed for localhost). Set ALLOW_HTTP_REDIRECT=true to disable this check.",

@@ -24,10 +24,10 @@ describe("Authorization code store", () => {
 
     const entry = consume(code);
     expect(entry).toBeDefined();
-    expect(entry!.jwe).toBe(sampleData.jwe);
-    expect(entry!.codeChallenge).toBe(sampleData.codeChallenge);
-    expect(entry!.redirectUri).toBe(sampleData.redirectUri);
-    expect(entry!.clientId).toBe(sampleData.clientId);
+    expect(entry?.jwe).toBe(sampleData.jwe);
+    expect(entry?.codeChallenge).toBe(sampleData.codeChallenge);
+    expect(entry?.redirectUri).toBe(sampleData.redirectUri);
+    expect(entry?.clientId).toBe(sampleData.clientId);
   });
 
   it("prevents reuse of a consumed code", () => {
