@@ -83,3 +83,28 @@ describe("renderLoginPage", () => {
     expect(html).toContain('value="state&amp;&quot;&#39;&lt;&gt;all"');
   });
 });
+
+describe("accessibility: base_url_desc helper text", () => {
+  const html = renderLoginPage(defaultParams);
+
+  it("span#base_url_desc does NOT have display:none style", () => {
+    expect(html).not.toMatch(
+      /id="base_url_desc"[^>]*style="[^"]*display:\s*none[^"]*"/,
+    );
+  });
+
+  it("defines a .sr-only CSS class with visually-hidden styles", () => {
+    expect(html).toMatch(/\.sr-only\s*\{[^}]*position:\s*absolute/);
+    expect(html).toMatch(/\.sr-only\s*\{[^}]*width:\s*1px/);
+    expect(html).toMatch(/\.sr-only\s*\{[^}]*height:\s*1px/);
+    expect(html).toMatch(/\.sr-only\s*\{[^}]*overflow:\s*hidden/);
+    expect(html).toMatch(/\.sr-only\s*\{[^}]*clip:\s*rect\(0/);
+  });
+
+  it("span#base_url_desc uses the sr-only class without inline display:none", () => {
+    expect(html).toMatch(/id="base_url_desc"[^>]*class="[^"]*sr-only[^"]*"/);
+    expect(html).not.toMatch(
+      /id="base_url_desc"[^>]*style="[^"]*display:\s*none[^"]*"/,
+    );
+  });
+});

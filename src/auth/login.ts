@@ -29,6 +29,7 @@ input[type="text"], input[type="url"], input[type="password"] { width: 100%; pad
 button { width: 100%; padding: 0.75rem; background: #0071c5; color: #fff; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
 button:hover { background: #005a9e; }
 button:focus-visible { outline: 2px solid #0071c5; outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 </style>
 </head>
 <body>
@@ -41,7 +42,7 @@ button:focus-visible { outline: 2px solid #0071c5; outline-offset: 2px; }
 <input type="hidden" name="code_challenge_method" value="${escapeHtml(params.codeChallengeMethod)}">
 <input type="hidden" name="state" value="${escapeHtml(params.state)}">
 <label for="base_url">kintone ベースURL</label>
-<span id="base_url_desc" class="sr-only" style="display:none;">例: https://example.cybozu.com</span>
+<span id="base_url_desc" class="sr-only">例: https://example.cybozu.com</span>
 <input type="url" id="base_url" name="base_url" placeholder="https://example.cybozu.com" required autofocus autocomplete="url" aria-describedby="base_url_desc">
 <label for="username">ログインID</label>
 <input type="text" id="username" name="username" required autocomplete="username">
