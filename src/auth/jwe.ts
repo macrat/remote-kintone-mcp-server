@@ -88,6 +88,18 @@ function validateCredentials(data: unknown): Credentials {
   return data as Credentials;
 }
 
+const DEFAULT_SESSION_EXPIRY_HOURS = 24;
+
+function getSessionExpirySeconds(): number {
+  const envValue = process.env.SESSION_EXPIRY_HOURS;
+  if (!envValue) return DEFAULT_SESSION_EXPIRY_HOURS * 60 * 60;
+  const hours = Number(envValue);
+  if (Number.isNaN(hours) || hours <= 0) {
+    throw new Error("SESSION_EXPIRY_HOURS must be a positive number");
+  }
+  return hours * 60 * 60;
+}
+
 export async function encrypt(payload: {
   baseUrl: string;
   username: string;
@@ -96,7 +108,7 @@ export async function encrypt(payload: {
   validateBaseUrl(payload.baseUrl);
   const secretKey = await getSecretKey();
   const iat = Math.floor(Date.now() / 1000);
-  const exp = iat + 24 * 60 * 60;
+  const exp = iat + getSessionExpirySeconds();
 
   const data: Credentials = {
     ...payload,

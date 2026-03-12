@@ -24,6 +24,7 @@
 | `JWE_SECRET_KEY` | はい | トークン暗号化用の秘密鍵（base64エンコードされた32バイト） |
 | `PORT` | いいえ | 待ち受けポート番号（デフォルト: `3000`） |
 | `LOG_LEVEL` | いいえ | ログレベル: `error`, `warn`, `info`, `debug`（デフォルト: `info`） |
+| `SESSION_EXPIRY_HOURS` | いいえ | セッション（トークン）の有効期間（時間単位、デフォルト: `24`） |
 | `ALLOW_HTTP_REDIRECT` | いいえ | `true` にすると、非localhostの `redirect_uri` でHTTPを許可する（デフォルト: `false`） |
 
 秘密鍵は以下のコマンドで生成できます。
@@ -113,7 +114,7 @@ claude mcp add --transport http kintone https://your-server-address:3000/mcp
 
 初回接続時にブラウザが開き、ログイン画面が表示されます。
 kintone環境のURL・ログインID・パスワードを入力すると認証が完了し、MCPサーバーが利用可能になります。
-認証トークンの有効期限は24時間です。期限が切れた場合は再度ログインが必要です。
+認証トークンの有効期限はデフォルトで24時間です（環境変数 `SESSION_EXPIRY_HOURS` で変更可能）。期限が切れた場合は再度ログインが必要です。
 
 ## 仕組み
 

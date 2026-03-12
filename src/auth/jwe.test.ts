@@ -13,6 +13,8 @@ describe("JWE encrypt/decrypt", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     resetKeyCache();
+    // biome-ignore lint/performance/noDelete: process.env requires delete to truly remove a key
+    delete process.env.SESSION_EXPIRY_HOURS;
   });
 
   it("round-trips credentials through encrypt and decrypt", async () => {
@@ -105,6 +107,62 @@ describe("JWE encrypt/decrypt", () => {
 
     await expect(encrypt(payload)).rejects.toThrow(
       "JWE_SECRET_KEY must be 32 bytes (256 bits)",
+    );
+  });
+
+  it("uses SESSION_EXPIRY_HOURS when set", async () => {
+    process.env.SESSION_EXPIRY_HOURS = "48";
+
+    const payload = {
+      baseUrl: "https://example.cybozu.com",
+      username: "test-user",
+      password: "test-password",
+    };
+
+    const jwe = await encrypt(payload);
+    const result = await decrypt(jwe);
+    expect(result.exp).toBe(result.iat + 48 * 60 * 60);
+  });
+
+  it("throws on invalid SESSION_EXPIRY_HOURS (zero)", async () => {
+    process.env.SESSION_EXPIRY_HOURS = "0";
+
+    const payload = {
+      baseUrl: "https://example.cybozu.com",
+      username: "test-user",
+      password: "test-password",
+    };
+
+    await expect(encrypt(payload)).rejects.toThrow(
+      "SESSION_EXPIRY_HOURS must be a positive number",
+    );
+  });
+
+  it("throws on invalid SESSION_EXPIRY_HOURS (negative)", async () => {
+    process.env.SESSION_EXPIRY_HOURS = "-1";
+
+    const payload = {
+      baseUrl: "https://example.cybozu.com",
+      username: "test-user",
+      password: "test-password",
+    };
+
+    await expect(encrypt(payload)).rejects.toThrow(
+      "SESSION_EXPIRY_HOURS must be a positive number",
+    );
+  });
+
+  it("throws on invalid SESSION_EXPIRY_HOURS (non-numeric)", async () => {
+    process.env.SESSION_EXPIRY_HOURS = "abc";
+
+    const payload = {
+      baseUrl: "https://example.cybozu.com",
+      username: "test-user",
+      password: "test-password",
+    };
+
+    await expect(encrypt(payload)).rejects.toThrow(
+      "SESSION_EXPIRY_HOURS must be a positive number",
     );
   });
 

@@ -7,6 +7,7 @@
 | `PORT` | No | `3000` | HTTPサーバーのポート番号 |
 | `JWE_SECRET_KEY` | Yes | — | JWE暗号化/復号用の共通鍵（Base64エンコードされた32バイト） |
 | `LOG_LEVEL` | No | `info` | ログレベル（`error`, `warn`, `info`, `debug`） |
+| `SESSION_EXPIRY_HOURS` | No | `24` | セッション（トークン）の有効期間（時間単位）。正の数値を指定する |
 | `ALLOW_HTTP_REDIRECT` | No | `false` | `true` に設定すると、非localhostの `redirect_uri` で HTTP を許可する。MCP仕様では HTTP/HTTPS 両方が許可されているが、セキュリティのためデフォルトでは非localhostは HTTPS を強制する |
 
 ## Docker での起動
