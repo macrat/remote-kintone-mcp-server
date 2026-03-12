@@ -71,82 +71,61 @@ MCP仕様の OAuth 2.1 フローに従いつつ、トークンの中身をJWE暗
 
 ## TypeScript SDK での実装
 
-### StreamableHTTPServerTransport
+### WebStandardStreamableHTTPServerTransport
+
+プロトタイプ時は Node.js の `IncomingMessage`/`ServerResponse` を使う `StreamableHTTPServerTransport` を
+検討していたが、MCP SDK が提供する `WebStandardStreamableHTTPServerTransport` を採用した。
+Web標準の `Request` / `Response` ベースで動作し、Honoとの統合がよりシンプルになる。
 
 ```typescript
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
-const transport = new StreamableHTTPServerTransport({
+const transport = new WebStandardStreamableHTTPServerTransport({
   sessionIdGenerator: () => crypto.randomUUID(),
+  onsessioninitialized: (id) => {
+    // セッション管理に登録
+  },
 });
 ```
-
-**コンストラクタオプション:**
-
-| オプション | 型 | 説明 |
-|-----------|---|------|
-| `sessionIdGenerator` | `() => string \| undefined` | セッションID生成関数。`undefined` 返却でステートレスモード |
-| `enableJsonResponse` | `boolean` | SSEの代わりにJSONレスポンスを使う |
-| `eventStore` | `EventStore` | SSEイベントの永続化（再接続対応） |
 
 **主要メソッド:**
 
 | メソッド | 説明 |
 |---------|------|
-| `handleRequest(req, res, body?)` | HTTPリクエストを処理 |
+| `handleRequest(request: Request)` | Web標準 Request を処理し Response を返す |
 | `close()` | トランスポートを閉じる |
 | `sessionId` | 生成されたセッションID |
 
-### Honoとの統合（検証済み）
+### Honoとの統合
 
-`StreamableHTTPServerTransport.handleRequest()` は Node.js の
-`IncomingMessage`/`ServerResponse` を期待する。
-`@hono/node-server` を使うと、`c.env.incoming`/`c.env.outgoing` でこれらにアクセスできる。
-
-**プロトタイプで以下を検証済み:**
-- initialize、tools/list、tools/call が正常動作
-- SSEストリーミング（`text/event-stream`）が正常動作
-- セッション管理（`Mcp-Session-Id` ヘッダー）が正常動作
-- Honoのレスポンスラッパーとの干渉なし
+`WebStandardStreamableHTTPServerTransport.handleRequest()` は Web標準の `Request` を受け取り
+`Response` を返す。Hono の `c.req.raw` で Web標準 `Request` にアクセスできるため、
+`c.env.incoming`/`c.env.outgoing` を使うBindingsパターンは不要。
 
 ```typescript
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
-const app = new Hono<{
-  Bindings: {
-    incoming: IncomingMessage;
-    outgoing: ServerResponse;
-  };
-}>();
+const app = new Hono();
 
 app.post("/mcp", async (c) => {
-  const { incoming, outgoing } = c.env;
-  const body = await c.req.json();
-
   // ... transport の取得/生成 ...
 
-  // handleRequest が outgoing に直接書き込む
-  await transport.handleRequest(incoming, outgoing, body);
-
-  // Hono のレスポンスをバイパス
-  return undefined as any;
+  // c.req.raw で Web標準 Request を渡し、Response を返す
+  return transport.handleRequest(c.req.raw);
 });
 
 app.get("/mcp", async (c) => {
-  const { incoming, outgoing } = c.env;
   // SSEストリームも同様に動作する
-  await transport.handleRequest(incoming, outgoing);
-  return undefined as any;
+  return transport.handleRequest(c.req.raw);
 });
 
 serve({ fetch: app.fetch, port: 3000 });
 ```
 
 **ポイント:**
-- `c.env.incoming` / `c.env.outgoing` で Node.js の生のリクエスト/レスポンスにアクセス
-- `handleRequest()` が `outgoing` に直接書き込むため、Honoのレスポンス処理をバイパスする（`return undefined as any`）
-- Honoの型パラメータ `Bindings` で `incoming`/`outgoing` の型を宣言することで型安全性を維持
+- `c.req.raw` で Web標準 `Request` を取得し、そのまま `handleRequest()` に渡す
+- `handleRequest()` が `Response` を返すため、Honoのレスポンスとして直接使用可能（バイパス不要）
+- Bindings の型宣言も不要で、コードがシンプル
 - CORSやログなど、MCPエンドポイント以外のルートではHonoのミドルウェアを通常通り利用可能
