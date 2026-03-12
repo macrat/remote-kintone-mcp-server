@@ -13,6 +13,7 @@ const logger = createLogger();
 interface SessionEntry {
   transport: WebStandardStreamableHTTPServerTransport;
   lastAccessedAt: number;
+  tokenExpiresAt: number;
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -20,6 +21,26 @@ const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_SESSIONS = 1000;
 
 export const sessions = new Map<string, SessionEntry>();
+
+/**
+ * Check if a session's token has expired. If so, close the transport,
+ * remove the session, and return a 401 response. Returns `null` if valid.
+ */
+function rejectIfTokenExpired(
+  sessionId: string,
+  entry: SessionEntry,
+): Response | null {
+  if (Date.now() >= entry.tokenExpiresAt) {
+    try {
+      entry.transport.close();
+    } catch {
+      // transport already closed or failed — safe to ignore
+    }
+    sessions.delete(sessionId);
+    return Response.json({ error: "Token expired" }, { status: 401 });
+  }
+  return null;
+}
 
 export function touchSession(sessionId: string): void {
   const entry = sessions.get(sessionId);
@@ -53,7 +74,10 @@ export function evictOldestSession(): void {
 export function cleanupExpiredSessions(): void {
   const now = Date.now();
   for (const [id, entry] of sessions) {
-    if (now - entry.lastAccessedAt > SESSION_TTL_MS) {
+    if (
+      now - entry.lastAccessedAt > SESSION_TTL_MS ||
+      now >= entry.tokenExpiresAt
+    ) {
       try {
         entry.transport.close();
       } catch {
@@ -93,6 +117,8 @@ app.post("/mcp", async (c) => {
   if (sessionId) {
     const existing = sessions.get(sessionId);
     if (existing) {
+      const expired = rejectIfTokenExpired(sessionId, existing);
+      if (expired) return expired;
       transport = existing.transport;
       touchSession(sessionId);
     } else {
@@ -123,12 +149,15 @@ app.post("/mcp", async (c) => {
       evictOldestSession();
     }
 
+    const tokenExpiresAt = credentials.exp * 1000;
+
     transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
       onsessioninitialized: (id) => {
         sessions.set(id, {
           transport,
           lastAccessedAt: Date.now(),
+          tokenExpiresAt,
         });
         logger.debug("session_created", { sessionId: id });
       },
@@ -162,6 +191,9 @@ app.get("/mcp", async (c) => {
     return c.json({ error: "Session not found" }, 404);
   }
 
+  const expired = rejectIfTokenExpired(sessionId, entry);
+  if (expired) return expired;
+
   touchSession(sessionId);
   return entry.transport.handleRequest(c.req.raw);
 });
@@ -176,6 +208,9 @@ app.delete("/mcp", async (c) => {
   if (!entry) {
     return c.json({ error: "Session not found" }, 404);
   }
+
+  const expiredResp = rejectIfTokenExpired(sessionId, entry);
+  if (expiredResp) return expiredResp;
 
   touchSession(sessionId);
   return entry.transport.handleRequest(c.req.raw);
