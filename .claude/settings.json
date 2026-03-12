@@ -12,5 +12,29 @@
     ],
     "deny": ["Read(.env)", "Edit(.env)"]
   },
-  "enabledMcpjsonServers": ["kintone"]
+  "enabledMcpjsonServers": ["kintone"],
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-on-edit.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-commit-check.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
