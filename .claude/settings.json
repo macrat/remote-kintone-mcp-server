@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm dev:*)",
+      "Bash(npm build:*)",
+      "Bash(npm start:*)",
+      "Bash(npm test:*)",
+      "Bash(npm check:*)",
+      "Bash(npm format:*)",
+      "Read(.env.example)",
+      "Edit(.env.example)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Edit(.env)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "kintone"
+  ]
+}
