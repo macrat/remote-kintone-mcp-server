@@ -180,3 +180,53 @@ describe("JWE encrypt/decrypt", () => {
     );
   });
 });
+
+describe("SSRF protection", () => {
+  beforeEach(() => {
+    resetKeyCache();
+    process.env.JWE_SECRET_KEY = TEST_SECRET_KEY;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetKeyCache();
+  });
+
+  const privateAddresses = [
+    {
+      name: "IPv6 loopback (expanded)",
+      url: "https://[0000:0000:0000:0000:0000:0000:0000:0001]/",
+    },
+    { name: "IPv6 link-local", url: "https://[fe80::1]/" },
+    { name: "IPv6 ULA (fc00::)", url: "https://[fc00::1]/" },
+    { name: "IPv6 ULA (fd00::)", url: "https://[fd00::1]/" },
+    {
+      name: "IPv4-mapped IPv6 loopback",
+      url: "https://[::ffff:127.0.0.1]/",
+    },
+    {
+      name: "IPv4-mapped IPv6 (10.x)",
+      url: "https://[::ffff:10.0.0.1]/",
+    },
+    {
+      name: "IPv4-mapped IPv6 (192.168.x)",
+      url: "https://[::ffff:192.168.1.1]/",
+    },
+    { name: "IPv6 unspecified", url: "https://[::]/"},
+    { name: "Cloud metadata (169.254.169.254)", url: "https://169.254.169.254/" },
+  ];
+
+  for (const { name, url } of privateAddresses) {
+    it(`rejects ${name}: ${url}`, async () => {
+      const payload = {
+        baseUrl: url,
+        username: "test-user",
+        password: "test-password",
+      };
+
+      await expect(encrypt(payload)).rejects.toThrow(
+        "baseUrl must not point to a private/internal address",
+      );
+    });
+  }
+});
