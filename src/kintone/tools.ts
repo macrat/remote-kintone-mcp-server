@@ -1,4 +1,3 @@
-// @ts-expect-error -- internal module with no type definitions
 import {
   createToolCallback,
   tools,
