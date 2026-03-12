@@ -5,8 +5,8 @@
 | 環境変数 | 必須 | デフォルト | 説明 |
 |---------|------|----------|------|
 | `PORT` | No | `3000` | HTTPサーバーのポート番号 |
-| `HOST` | No | `0.0.0.0` | バインドするホスト |
 | `JWE_SECRET_KEY` | Yes | — | JWE暗号化/復号用の共通鍵（Base64エンコードされた32バイト） |
+| `LOG_LEVEL` | No | `info` | ログレベル（`error`, `warn`, `info`, `debug`） |
 | `ALLOW_HTTP_REDIRECT` | No | `false` | `true` に設定すると、非localhostの `redirect_uri` で HTTP を許可する。MCP仕様では HTTP/HTTPS 両方が許可されているが、セキュリティのためデフォルトでは非localhostは HTTPS を強制する |
 
 ## Docker での起動
