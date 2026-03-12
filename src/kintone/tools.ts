@@ -37,15 +37,16 @@ function wrapWithErrorHandling(toolName: string, callback: any): any {
   // biome-ignore lint/suspicious/noExplicitAny: callback args from internal module
   return async (...args: any[]) => {
     const start = Date.now();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       const result = await Promise.race([
         callback(...args),
-        new Promise((_, reject) =>
-          setTimeout(
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(
             () => reject(new Error("kintone API call timed out")),
             TOOL_TIMEOUT_MS,
-          ),
-        ),
+          );
+        }),
       ]);
       logger.debug("kintone_api_call", {
         tool: toolName,
@@ -82,6 +83,8 @@ function wrapWithErrorHandling(toolName: string, callback: any): any {
         ],
         isError: true,
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 }
