@@ -6,9 +6,7 @@
       "Bash(npm start:*)",
       "Bash(npm test:*)",
       "Bash(npm check:*)",
-      "Bash(npm format:*)",
-      "Read(.env.example)",
-      "Edit(.env.example)"
+      "Bash(npm format:*)"
     ],
     "deny": ["Read(.env)", "Edit(.env)"]
   },
