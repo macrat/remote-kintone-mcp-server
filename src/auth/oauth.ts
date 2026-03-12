@@ -120,6 +120,8 @@ oauthApp.get("/authorize", (c) => {
     codeChallengeMethod,
     state,
   });
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", "frame-ancestors 'none'");
   return c.html(html);
 });
 
