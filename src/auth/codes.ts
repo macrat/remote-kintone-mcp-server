@@ -11,12 +11,25 @@ interface AuthorizationCodeEntry {
 const store = new Map<string, AuthorizationCodeEntry>();
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
+const MAX_CODES = 10000;
+
+export class StoreFullError extends Error {
+  constructor() {
+    super("Authorization code store is full");
+    this.name = "StoreFullError";
+  }
+}
+
 export function generate(data: {
   jwe: string;
   codeChallenge: string;
   redirectUri: string;
   clientId: string;
 }): string {
+  if (store.size >= MAX_CODES) {
+    throw new StoreFullError();
+  }
+
   const code = crypto.randomUUID();
   const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 

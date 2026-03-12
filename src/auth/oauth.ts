@@ -179,12 +179,26 @@ oauthApp.post("/authorize", async (c) => {
 
   const jwe = await encrypt({ baseUrl, username, password });
 
-  const code = codes.generate({
-    jwe,
-    codeChallenge,
-    redirectUri,
-    clientId,
-  });
+  let code: string;
+  try {
+    code = codes.generate({
+      jwe,
+      codeChallenge,
+      redirectUri,
+      clientId,
+    });
+  } catch (e) {
+    if (e instanceof codes.StoreFullError) {
+      return c.json(
+        {
+          error: "temporarily_unavailable",
+          error_description: "Too many pending authorization requests",
+        },
+        429,
+      );
+    }
+    throw e;
+  }
 
   const url = new URL(redirectUri);
   url.searchParams.set("code", code);
