@@ -71,6 +71,43 @@ describe("JWE encrypt/decrypt", () => {
     await expect(decrypt(tamperedJwe)).rejects.toThrow();
   });
 
+  it("rejects non-HTTPS baseUrl", async () => {
+    const payload = {
+      baseUrl: "http://example.cybozu.com",
+      username: "test-user",
+      password: "test-password",
+    };
+
+    await expect(encrypt(payload)).rejects.toThrow("baseUrl must use HTTPS");
+  });
+
+  it("rejects invalid baseUrl", async () => {
+    const payload = {
+      baseUrl: "not-a-url",
+      username: "test-user",
+      password: "test-password",
+    };
+
+    await expect(encrypt(payload)).rejects.toThrow(
+      "baseUrl is not a valid URL",
+    );
+  });
+
+  it("rejects invalid key length", async () => {
+    process.env.JWE_SECRET_KEY = crypto.randomBytes(16).toString("base64");
+    resetKeyCache();
+
+    const payload = {
+      baseUrl: "https://example.cybozu.com",
+      username: "test-user",
+      password: "test-password",
+    };
+
+    await expect(encrypt(payload)).rejects.toThrow(
+      "JWE_SECRET_KEY must be 32 bytes (256 bits)",
+    );
+  });
+
   it("throws when JWE_SECRET_KEY is not set", async () => {
     delete process.env.JWE_SECRET_KEY;
     resetKeyCache();

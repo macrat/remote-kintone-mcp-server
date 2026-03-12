@@ -1,4 +1,4 @@
-import { CompactEncrypt, base64url, compactDecrypt } from "jose";
+import { CompactEncrypt, compactDecrypt } from "jose";
 
 export interface Credentials {
   baseUrl: string;
@@ -37,11 +37,39 @@ export function resetKeyCache(): void {
   cachedKey = null;
 }
 
+function validateBaseUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("baseUrl is not a valid URL");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("baseUrl must use HTTPS");
+  }
+}
+
+function validateCredentials(data: unknown): Credentials {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    typeof (data as Record<string, unknown>).baseUrl !== "string" ||
+    typeof (data as Record<string, unknown>).username !== "string" ||
+    typeof (data as Record<string, unknown>).password !== "string" ||
+    typeof (data as Record<string, unknown>).iat !== "number" ||
+    typeof (data as Record<string, unknown>).exp !== "number"
+  ) {
+    throw new Error("Invalid token payload");
+  }
+  return data as Credentials;
+}
+
 export async function encrypt(payload: {
   baseUrl: string;
   username: string;
   password: string;
 }): Promise<string> {
+  validateBaseUrl(payload.baseUrl);
   const secretKey = await getSecretKey();
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + 24 * 60 * 60;
@@ -64,8 +92,8 @@ export async function encrypt(payload: {
 export async function decrypt(jwe: string): Promise<Credentials> {
   const secretKey = await getSecretKey();
   const { plaintext } = await compactDecrypt(jwe, secretKey);
-  const credentials: Credentials = JSON.parse(
-    new TextDecoder().decode(plaintext),
+  const credentials = validateCredentials(
+    JSON.parse(new TextDecoder().decode(plaintext)),
   );
 
   const now = Math.floor(Date.now() / 1000);
