@@ -22,10 +22,14 @@ export function register(metadata: ClientMetadata): ClientInfo {
     throw new Error("redirect_uris is required and must be a non-empty array");
   }
   for (const uri of metadata.redirect_uris) {
+    let parsed: URL;
     try {
-      new URL(uri);
+      parsed = new URL(uri);
     } catch {
       throw new Error(`Invalid redirect_uri: ${uri}`);
+    }
+    if (parsed.hash) {
+      throw new Error("redirect_uri must not contain a fragment");
     }
   }
 
