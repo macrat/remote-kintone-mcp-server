@@ -2,8 +2,8 @@ import {
   createToolCallback,
   tools,
 } from "@kintone/mcp-server/dist/tools/index.js";
-import { KintoneRestAPIError } from "@kintone/rest-api-client";
 import type { KintoneRestAPIClient } from "@kintone/rest-api-client";
+import { KintoneRestAPIError } from "@kintone/rest-api-client";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createLogger } from "../server/logger.js";
 
