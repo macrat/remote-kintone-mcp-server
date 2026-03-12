@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
-import { decrypt } from "../auth/jwe.js";
+import { type Credentials, decrypt } from "../auth/jwe.js";
 import { oauthApp } from "../auth/oauth.js";
 import { createKintoneClient } from "../kintone/client.js";
 import { registerKintoneTools } from "../kintone/tools.js";
@@ -21,14 +21,14 @@ const MAX_SESSIONS = 1000;
 
 export const sessions = new Map<string, SessionEntry>();
 
-function touchSession(sessionId: string): void {
+export function touchSession(sessionId: string): void {
   const entry = sessions.get(sessionId);
   if (entry) {
     entry.lastAccessedAt = Date.now();
   }
 }
 
-function evictOldestSession(): void {
+export function evictOldestSession(): void {
   let oldestId: string | undefined;
   let oldestTime = Number.POSITIVE_INFINITY;
   for (const [id, entry] of sessions) {
@@ -46,7 +46,7 @@ function evictOldestSession(): void {
   }
 }
 
-function cleanupExpiredSessions(): void {
+export function cleanupExpiredSessions(): void {
   const now = Date.now();
   for (const [id, entry] of sessions) {
     if (now - entry.lastAccessedAt > SESSION_TTL_MS) {
@@ -98,7 +98,7 @@ app.post("/mcp", async (c) => {
     }
 
     const jweToken = authHeader.slice(7);
-    let credentials;
+    let credentials: Credentials;
     try {
       credentials = await decrypt(jweToken);
     } catch (e) {
