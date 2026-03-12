@@ -23,8 +23,10 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.14.1",
+    "@kintone/mcp-server": "1.3.6",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "hono": "^4.7.8"
+    "hono": "^4.7.8",
+    "jose": "^6.2.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
