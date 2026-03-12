@@ -45,13 +45,12 @@ export function consume(code: string): AuthorizationCodeEntry | undefined {
   const entry = store.get(code);
   if (!entry) return undefined;
 
-  // Check expiry before consuming
+  store.delete(code);
+
   if (entry.expiresAt <= Date.now()) {
-    store.delete(code);
     return undefined;
   }
 
-  store.delete(code);
   return entry;
 }
 
