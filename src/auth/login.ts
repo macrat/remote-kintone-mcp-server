@@ -1,18 +1,18 @@
 export function renderLoginPage(params: {
-	clientId: string;
-	redirectUri: string;
-	codeChallenge: string;
-	codeChallengeMethod: string;
-	state: string;
+  clientId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  state: string;
 }): string {
-	const escape = (s: string) =>
-		s
-			.replace(/&/g, "&amp;")
-			.replace(/"/g, "&quot;")
-			.replace(/</g, "&lt;")
-			.replace(/>/g, "&gt;");
+  const escape = (s: string) =>
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
 
-	return `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
