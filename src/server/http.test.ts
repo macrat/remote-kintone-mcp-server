@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  app,
   cleanupExpiredSessions,
   evictOldestSession,
   sessions,
@@ -112,6 +113,42 @@ describe("session management", () => {
 
     it("does nothing for non-existent session", () => {
       expect(() => touchSession("nonexistent")).not.toThrow();
+    });
+  });
+});
+
+describe("GET and DELETE /mcp error cases", () => {
+  afterEach(() => {
+    sessions.clear();
+  });
+
+  describe("GET /mcp", () => {
+    it("without mcp-session-id header returns 400", async () => {
+      const res = await app.request("/mcp", { method: "GET" });
+      expect(res.status).toBe(400);
+    });
+
+    it("with non-existent session ID returns 404", async () => {
+      const res = await app.request("/mcp", {
+        method: "GET",
+        headers: { "mcp-session-id": "nonexistent" },
+      });
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("DELETE /mcp", () => {
+    it("without mcp-session-id header returns 400", async () => {
+      const res = await app.request("/mcp", { method: "DELETE" });
+      expect(res.status).toBe(400);
+    });
+
+    it("with non-existent session ID returns 404", async () => {
+      const res = await app.request("/mcp", {
+        method: "DELETE",
+        headers: { "mcp-session-id": "nonexistent" },
+      });
+      expect(res.status).toBe(404);
     });
   });
 });
