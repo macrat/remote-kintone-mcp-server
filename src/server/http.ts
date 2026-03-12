@@ -134,5 +134,6 @@ app.delete("/mcp", async (c) => {
     return c.json({ error: "Session not found" }, 404);
   }
 
+  touchSession(sessionId);
   return entry.transport.handleRequest(c.req.raw);
 });
