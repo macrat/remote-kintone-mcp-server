@@ -15,6 +15,20 @@ export interface ClientInfo {
 const store = new Map<string, ClientInfo>();
 
 export function register(metadata: ClientMetadata): ClientInfo {
+  if (
+    !Array.isArray(metadata.redirect_uris) ||
+    metadata.redirect_uris.length === 0
+  ) {
+    throw new Error("redirect_uris is required and must be a non-empty array");
+  }
+  for (const uri of metadata.redirect_uris) {
+    try {
+      new URL(uri);
+    } catch {
+      throw new Error(`Invalid redirect_uri: ${uri}`);
+    }
+  }
+
   const client_id = crypto.randomUUID();
   const client_secret = crypto.randomUUID();
 
@@ -26,7 +40,11 @@ export function register(metadata: ClientMetadata): ClientInfo {
 export function validate(clientId: string, clientSecret: string): boolean {
   const client = store.get(clientId);
   if (!client) return false;
-  return client.client_secret === clientSecret;
+
+  const expected = Buffer.from(client.client_secret);
+  const actual = Buffer.from(clientSecret);
+  if (expected.length !== actual.length) return false;
+  return crypto.timingSafeEqual(expected, actual);
 }
 
 export function get(clientId: string): ClientInfo | undefined {

@@ -25,7 +25,18 @@ oauthApp.get("/.well-known/oauth-authorization-server", (c) => {
 // Dynamic Client Registration
 oauthApp.post("/register", async (c) => {
   const body = await c.req.json();
-  const info = clients.register(body);
+  let info: clients.ClientInfo;
+  try {
+    info = clients.register(body);
+  } catch (e) {
+    return c.json(
+      {
+        error: "invalid_client_metadata",
+        error_description: String(e instanceof Error ? e.message : e),
+      },
+      400,
+    );
+  }
   return c.json(
     {
       client_id: info.client_id,
