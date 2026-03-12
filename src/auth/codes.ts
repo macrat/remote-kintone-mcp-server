@@ -41,6 +41,19 @@ export function generate(data: {
   return code;
 }
 
+export function lookup(code: string): AuthorizationCodeEntry | undefined {
+  const entry = store.get(code);
+  if (!entry) return undefined;
+
+  // Check expiry
+  if (entry.expiresAt <= Date.now()) {
+    store.delete(code);
+    return undefined;
+  }
+
+  return entry;
+}
+
 export function consume(code: string): AuthorizationCodeEntry | undefined {
   const entry = store.get(code);
   if (!entry) return undefined;

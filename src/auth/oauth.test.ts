@@ -328,4 +328,218 @@ describe("OAuth endpoints", () => {
       expect(body.error).toBe("invalid_grant");
     });
   });
+
+  describe("Authorization code premature consumption (issue #1)", () => {
+    // Helper: register a client, generate PKCE, authorize, and return everything needed for token exchange
+    async function setupAuthorizationCode() {
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      const { client_id, client_secret } = await regRes.json();
+
+      const { verifier, challenge } = await generatePKCE();
+
+      const formData = new URLSearchParams({
+        base_url: "https://example.cybozu.com",
+        username: "test-user",
+        password: "test-password",
+        client_id,
+        redirect_uri: "http://localhost:3000/callback",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "test-state",
+      });
+
+      const authPostRes = await oauthApp.request("/authorize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+        redirect: "manual",
+      });
+      const location = authPostRes.headers.get("location") ?? "";
+      const code = new URL(location).searchParams.get("code") ?? "";
+
+      return { client_id, client_secret, verifier, code };
+    }
+
+    // Helper: register a second client to get a different client_id/secret
+    async function registerAnotherClient() {
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      return await regRes.json();
+    }
+
+    it("code should survive a token request with wrong client_id", async () => {
+      const { client_id, client_secret, verifier, code } =
+        await setupAuthorizationCode();
+      const otherClient = await registerAnotherClient();
+
+      // Attempt token exchange with wrong client_id (but valid client credentials for the other client)
+      const badTokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id: otherClient.client_id,
+        client_secret: otherClient.client_secret,
+      });
+
+      const badRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: badTokenData.toString(),
+      });
+      expect(badRes.status).toBe(400);
+
+      // Now the legitimate client should still be able to exchange the code
+      const goodTokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const goodRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: goodTokenData.toString(),
+      });
+      // This should succeed, but currently fails because consume() already deleted the code
+      expect(goodRes.status).toBe(200);
+      const body = await goodRes.json();
+      expect(body.access_token).toBeDefined();
+      expect(body.token_type).toBe("Bearer");
+    });
+
+    it("code should survive a token request with wrong redirect_uri", async () => {
+      const { client_id, client_secret, verifier, code } =
+        await setupAuthorizationCode();
+
+      // Attempt token exchange with wrong redirect_uri
+      const badTokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/wrong-callback",
+        client_id,
+        client_secret,
+      });
+
+      const badRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: badTokenData.toString(),
+      });
+      expect(badRes.status).toBe(400);
+
+      // Now the legitimate client should still be able to exchange the code
+      const goodTokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const goodRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: goodTokenData.toString(),
+      });
+      // This should succeed, but currently fails because consume() already deleted the code
+      expect(goodRes.status).toBe(200);
+      const body = await goodRes.json();
+      expect(body.access_token).toBeDefined();
+      expect(body.token_type).toBe("Bearer");
+    });
+
+    it("code should survive a token request with wrong code_verifier", async () => {
+      // Register client
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      const { client_id, client_secret } = await regRes.json();
+
+      // Generate PKCE
+      const { verifier: correctVerifier, challenge } = await generatePKCE();
+      const { verifier: wrongVerifier } = await generatePKCE();
+
+      // Authorize
+      const formData = new URLSearchParams({
+        base_url: "https://example.cybozu.com",
+        username: "test-user",
+        password: "test-password",
+        client_id,
+        redirect_uri: "http://localhost:3000/callback",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "test-state",
+      });
+
+      const authPostRes = await oauthApp.request("/authorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+        redirect: "manual",
+      });
+      const location = authPostRes.headers.get("location") ?? "";
+      const code = new URL(location).searchParams.get("code") ?? "";
+
+      // First attempt: wrong code_verifier — should fail
+      const badTokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: wrongVerifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const badRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: badTokenData.toString(),
+      });
+      expect(badRes.status).toBe(400);
+
+      // Second attempt: correct code_verifier — should succeed
+      const goodTokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: correctVerifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const goodRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: goodTokenData.toString(),
+      });
+      // This should succeed, but currently fails because consume() already deleted the code
+      expect(goodRes.status).toBe(200);
+      const body = await goodRes.json();
+      expect(body.access_token).toBeDefined();
+      expect(body.token_type).toBe("Bearer");
+    });
+  });
 });

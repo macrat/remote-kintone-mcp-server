@@ -246,8 +246,8 @@ oauthApp.post("/token", async (c) => {
     return c.json({ error: "invalid_client" }, 401);
   }
 
-  // Consume authorization code
-  const entry = codes.consume(code);
+  // Lookup authorization code (without consuming it)
+  const entry = codes.lookup(code);
   if (!entry) {
     return c.json({ error: "invalid_grant" }, 400);
   }
@@ -275,6 +275,11 @@ oauthApp.post("/token", async (c) => {
     expectedBuf.length !== actualBuf.length ||
     !crypto.timingSafeEqual(expectedBuf, actualBuf)
   ) {
+    return c.json({ error: "invalid_grant" }, 400);
+  }
+
+  // All validations passed — now consume the code
+  if (!codes.consume(code)) {
     return c.json({ error: "invalid_grant" }, 400);
   }
 
