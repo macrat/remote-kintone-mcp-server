@@ -13,7 +13,7 @@ const SENSITIVE_KEYS = [
   "secret",
   "authorization",
   "cookie",
-  "apiToken",
+  "apitoken",
   "api_token",
 ];
 
@@ -22,7 +22,13 @@ function sanitize(data: Record<string, unknown>): Record<string, unknown> {
   for (const [key, value] of Object.entries(data)) {
     if (SENSITIVE_KEYS.includes(key.toLowerCase())) {
       result[key] = "[REDACTED]";
-    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+    } else if (Array.isArray(value)) {
+      result[key] = value.map((item) =>
+        item && typeof item === "object"
+          ? sanitize(item as Record<string, unknown>)
+          : item,
+      );
+    } else if (value && typeof value === "object") {
       result[key] = sanitize(value as Record<string, unknown>);
     } else {
       result[key] = value;
