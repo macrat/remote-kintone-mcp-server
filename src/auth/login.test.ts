@@ -24,7 +24,7 @@ describe("escapeHtml", () => {
     expect(html).not.toContain('value="&"\'<>"');
   });
 
-  it("escapes <script>alert(\"xss\")</script> injection string", () => {
+  it('escapes <script>alert("xss")</script> injection string', () => {
     const html = renderLoginPage({
       ...defaultParams,
       state: '<script>alert("xss")</script>',
@@ -79,9 +79,7 @@ describe("renderLoginPage", () => {
       'value="https://example.com/callback?a=1&amp;b=&quot;2&quot;"',
     );
     expect(html).toContain('value="challenge&lt;script&gt;"');
-    expect(html).toContain("value=\"method&#39;quote\"");
-    expect(html).toContain(
-      'value="state&amp;&quot;&#39;&lt;&gt;all"',
-    );
+    expect(html).toContain('value="method&#39;quote"');
+    expect(html).toContain('value="state&amp;&quot;&#39;&lt;&gt;all"');
   });
 });

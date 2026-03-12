@@ -76,8 +76,10 @@ describe("sanitize", () => {
 });
 
 describe("createLogger", () => {
-  let stdoutSpy: ReturnType<typeof vi.spyOn>;
-  let stderrSpy: ReturnType<typeof vi.spyOn>;
+  // biome-ignore lint/suspicious/noExplicitAny: spying on process.stdout.write overloads
+  let stdoutSpy: any;
+  // biome-ignore lint/suspicious/noExplicitAny: spying on process.stderr.write overloads
+  let stderrSpy: any;
 
   beforeEach(() => {
     stdoutSpy = vi
@@ -90,7 +92,7 @@ describe("createLogger", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.LOG_LEVEL;
+    process.env.LOG_LEVEL = undefined;
   });
 
   it("filters out info and debug when level is warn", () => {
@@ -119,7 +121,7 @@ describe("createLogger", () => {
   });
 
   it("defaults to info level when no override and no LOG_LEVEL env", () => {
-    delete process.env.LOG_LEVEL;
+    process.env.LOG_LEVEL = undefined;
     const logger = createLogger();
 
     logger.info("visible");
