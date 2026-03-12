@@ -123,6 +123,7 @@ describe("OAuth endpoints", () => {
         grant_type: "authorization_code",
         code,
         code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/callback",
         client_id,
         client_secret,
       });
@@ -184,6 +185,65 @@ describe("OAuth endpoints", () => {
         grant_type: "authorization_code",
         code,
         code_verifier: wrongVerifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const tokenRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: tokenData.toString(),
+      });
+      expect(tokenRes.status).toBe(400);
+      const body = await tokenRes.json();
+      expect(body.error).toBe("invalid_grant");
+    });
+
+    it("rejects token exchange with mismatched redirect_uri", async () => {
+      // Register client
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      const { client_id, client_secret } = await regRes.json();
+
+      const { verifier, challenge } = await generatePKCE();
+
+      // POST /authorize
+      const formData = new URLSearchParams({
+        base_url: "https://example.cybozu.com",
+        username: "test-user",
+        password: "test-password",
+        client_id,
+        redirect_uri: "http://localhost:3000/callback",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "test-state",
+      });
+
+      const authPostRes = await oauthApp.request("/authorize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+        redirect: "manual",
+      });
+      const location = authPostRes.headers.get("location")!;
+      const code = new URL(location).searchParams.get("code")!;
+
+      // POST /token with different redirect_uri
+      const tokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://evil.example.com/steal",
         client_id,
         client_secret,
       });
@@ -241,6 +301,7 @@ describe("OAuth endpoints", () => {
         grant_type: "authorization_code",
         code,
         code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/callback",
         client_id,
         client_secret,
       });

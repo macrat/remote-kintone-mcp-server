@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Hono } from "hono";
 import { base64url } from "jose";
 import * as clients from "./clients.js";
@@ -94,15 +95,22 @@ oauthApp.get("/authorize", (c) => {
 // Authorization Endpoint (POST - process login form)
 oauthApp.post("/authorize", async (c) => {
   const form = await c.req.parseBody();
-  const baseUrl = form.base_url as string;
-  const username = form.username as string;
-  const password = form.password as string;
-  const clientId = form.client_id as string;
-  const redirectUri = form.redirect_uri as string;
-  const codeChallenge = form.code_challenge as string;
-  const state = form.state as string;
+  const baseUrl = form.base_url;
+  const username = form.username;
+  const password = form.password;
+  const clientId = form.client_id;
+  const redirectUri = form.redirect_uri;
+  const codeChallenge = form.code_challenge;
+  const state = form.state;
 
   if (
+    typeof baseUrl !== "string" ||
+    typeof username !== "string" ||
+    typeof password !== "string" ||
+    typeof clientId !== "string" ||
+    typeof redirectUri !== "string" ||
+    typeof codeChallenge !== "string" ||
+    typeof state !== "string" ||
     !baseUrl ||
     !username ||
     !password ||
@@ -142,17 +150,29 @@ oauthApp.post("/authorize", async (c) => {
 // Token Endpoint
 oauthApp.post("/token", async (c) => {
   const form = await c.req.parseBody();
-  const grantType = form.grant_type as string;
-  const code = form.code as string;
-  const codeVerifier = form.code_verifier as string;
-  const clientId = form.client_id as string;
-  const clientSecret = form.client_secret as string;
+  const grantType = form.grant_type;
+  const code = form.code;
+  const codeVerifier = form.code_verifier;
+  const clientId = form.client_id;
+  const clientSecret = form.client_secret;
+  const redirectUri = form.redirect_uri;
 
   if (grantType !== "authorization_code") {
     return c.json({ error: "unsupported_grant_type" }, 400);
   }
 
-  if (!code || !codeVerifier || !clientId || !clientSecret) {
+  if (
+    typeof code !== "string" ||
+    typeof codeVerifier !== "string" ||
+    typeof clientId !== "string" ||
+    typeof clientSecret !== "string" ||
+    typeof redirectUri !== "string" ||
+    !code ||
+    !codeVerifier ||
+    !clientId ||
+    !clientSecret ||
+    !redirectUri
+  ) {
     return c.json({ error: "invalid_request" }, 400);
   }
 
@@ -172,13 +192,24 @@ oauthApp.post("/token", async (c) => {
     return c.json({ error: "invalid_grant" }, 400);
   }
 
-  // PKCE verification (S256)
-  const encoder = new TextEncoder();
-  const data = encoder.encode(codeVerifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
+  // Verify redirect_uri matches the one used during authorization
+  if (entry.redirectUri !== redirectUri) {
+    return c.json({ error: "invalid_grant" }, 400);
+  }
+
+  // PKCE verification (S256) with timing-safe comparison
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(codeVerifier),
+  );
   const expectedChallenge = base64url.encode(new Uint8Array(digest));
 
-  if (expectedChallenge !== entry.codeChallenge) {
+  const expectedBuf = Buffer.from(expectedChallenge);
+  const actualBuf = Buffer.from(entry.codeChallenge);
+  if (
+    expectedBuf.length !== actualBuf.length ||
+    !crypto.timingSafeEqual(expectedBuf, actualBuf)
+  ) {
     return c.json({ error: "invalid_grant" }, 400);
   }
 
