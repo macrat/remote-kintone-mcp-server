@@ -1,0 +1,20 @@
+{
+  "name": "remote-kintone-mcp-server",
+  "version": "1.0.0",
+  "description": "Streamable HTTP wrapper for the kintone official MCP server.",
+  "homepage": "https://github.com/macrat/remote-kintone-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/macrat/remote-kintone-mcp-server/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/macrat/remote-kintone-mcp-server.git"
+  },
+  "license": "Apache-2.0",
+  "author": "MacRat <m@crat.jp>",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
