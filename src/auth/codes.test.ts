@@ -41,9 +41,13 @@ describe("Authorization code store", () => {
   });
 
   it("returns undefined for expired codes", () => {
+    const pastTime = Date.now() - 11 * 60 * 1000;
+    vi.spyOn(Date, "now").mockReturnValue(pastTime);
+
     const code = generate(sampleData);
-    const futureTime = Date.now() + 11 * 60 * 1000;
-    vi.spyOn(Date, "now").mockReturnValue(futureTime);
+
+    vi.restoreAllMocks();
+
     const entry = consume(code);
     expect(entry).toBeUndefined();
   });
