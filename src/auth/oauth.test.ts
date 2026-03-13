@@ -245,8 +245,7 @@ describe("OAuth endpoints", () => {
     });
 
     it("error response includes Cache-Control: no-store and Pragma: no-cache", async () => {
-      const { client_id, client_secret, verifier, code } =
-        await setupTokenExchange();
+      const { client_id, client_secret, code } = await setupTokenExchange();
 
       // Use wrong code_verifier to trigger an invalid_grant error
       const { verifier: wrongVerifier } = await generatePKCE();
@@ -936,7 +935,9 @@ describe("OAuth endpoints", () => {
       mockedCreate.mockImplementation(() => {
         const fakeClient = {
           app: {
-            getApps: vi.fn().mockRejectedValue(new Error("Authentication failed")),
+            getApps: vi
+              .fn()
+              .mockRejectedValue(new Error("Authentication failed")),
           },
         };
         return fakeClient as unknown as ReturnType<typeof createKintoneClient>;

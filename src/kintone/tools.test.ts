@@ -172,7 +172,7 @@ describe("wrapWithErrorHandling timer cleanup", () => {
     ) => {
       receivedSignal = options?.signal;
       // Simulate a long-running operation that respects AbortSignal
-      return new Promise((resolve, reject) => {
+      return new Promise((_resolve, reject) => {
         if (receivedSignal) {
           receivedSignal.addEventListener("abort", () => {
             reject(new Error("aborted"));
