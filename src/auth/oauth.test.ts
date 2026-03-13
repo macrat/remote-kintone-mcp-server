@@ -64,6 +64,17 @@ describe("OAuth endpoints", () => {
       expect(body.client_secret).toBeDefined();
       expect(body.client_name).toBe("test-client");
     });
+
+    it("returns 400 with invalid_client_metadata for invalid JSON body", async () => {
+      const res = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "this is not valid json{{{",
+      });
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toBe("invalid_client_metadata");
+    });
   });
 
   describe("Full OAuth flow", () => {
