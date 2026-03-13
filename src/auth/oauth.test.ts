@@ -1,10 +1,14 @@
 import crypto from "node:crypto";
 import { base64url } from "jose";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearStore as clearClients } from "./clients.js";
 import { clearStore as clearCodes } from "./codes.js";
 import { resetKeyCache } from "./jwe.js";
 import { oauthApp } from "./oauth.js";
+
+vi.mock("../kintone/client.js", () => ({
+  createKintoneClient: vi.fn(),
+}));
 
 const TEST_SECRET_KEY = crypto.randomBytes(32).toString("base64");
 
@@ -789,6 +793,108 @@ describe("OAuth endpoints", () => {
       const html = await res.text();
       expect(html).toContain("-invalid");
       expect(html).toContain("test-user");
+    });
+  });
+
+  describe("Credential verification before issuing authorization code (issue #2)", () => {
+    // Helper: register a client and generate PKCE challenge
+    async function registerClientAndPKCE() {
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      const { client_id, client_secret } = await regRes.json();
+      const { verifier, challenge } = await generatePKCE();
+      return { client_id, client_secret, verifier, challenge };
+    }
+
+    it("should not issue authorization code when kintone credential verification fails", async () => {
+      // Mock createKintoneClient to return a client whose API call rejects
+      const { createKintoneClient } = await import("../kintone/client.js");
+      const mockedCreate = vi.mocked(createKintoneClient);
+      mockedCreate.mockImplementation(() => {
+        const fakeClient = {
+          app: {
+            getApps: vi.fn().mockRejectedValue(new Error("Authentication failed")),
+          },
+        };
+        return fakeClient as ReturnType<typeof createKintoneClient>;
+      });
+
+      const { client_id, challenge } = await registerClientAndPKCE();
+
+      const formData = new URLSearchParams({
+        subdomain: "invalid-tenant",
+        username: "wrong-user",
+        password: "wrong-password",
+        client_id,
+        redirect_uri: "http://localhost:3000/callback",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "test-state",
+      });
+
+      const res = await oauthApp.request("/authorize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+        redirect: "manual",
+      });
+
+      // Current behavior: 302 redirect with authorization code (no verification)
+      // Expected behavior: 400 with login form re-displayed showing an error message
+      expect(res.status).toBe(400);
+      const html = await res.text();
+      expect(html).toContain("form");
+    });
+
+    it("should issue authorization code when kintone credential verification succeeds", async () => {
+      // Mock createKintoneClient to return a client whose API call succeeds
+      const { createKintoneClient } = await import("../kintone/client.js");
+      const mockedCreate = vi.mocked(createKintoneClient);
+      mockedCreate.mockImplementation(() => {
+        const fakeClient = {
+          app: {
+            getApps: vi.fn().mockResolvedValue({ apps: [] }),
+          },
+        };
+        return fakeClient as ReturnType<typeof createKintoneClient>;
+      });
+
+      const { client_id, challenge } = await registerClientAndPKCE();
+
+      const formData = new URLSearchParams({
+        subdomain: "valid-tenant",
+        username: "valid-user",
+        password: "valid-password",
+        client_id,
+        redirect_uri: "http://localhost:3000/callback",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "test-state",
+      });
+
+      const res = await oauthApp.request("/authorize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+        redirect: "manual",
+      });
+
+      // With valid credentials, authorization code should be issued
+      expect(res.status).toBe(302);
+      const location = res.headers.get("location");
+      expect(location).toBeDefined();
+      const redirectUrl = new URL(location ?? "");
+      expect(redirectUrl.searchParams.get("code")).toBeDefined();
+      expect(redirectUrl.searchParams.get("state")).toBe("test-state");
     });
   });
 });

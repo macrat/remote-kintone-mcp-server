@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Hono } from "hono";
 import { base64url } from "jose";
+import { createKintoneClient } from "../kintone/client.js";
 import * as clients from "./clients.js";
 import * as codes from "./codes.js";
 import { encrypt } from "./jwe.js";
@@ -236,6 +237,27 @@ oauthApp.post("/authorize", async (c) => {
   }
 
   const baseUrl = `https://${subdomain}.cybozu.com`;
+
+  // Verify kintone credentials before issuing authorization code
+  try {
+    const kintoneClient = createKintoneClient({ baseUrl, username, password });
+    await kintoneClient.app.getApps({ limit: 1 });
+  } catch {
+    const errorMessage =
+      "kintone への接続に失敗しました。サブドメイン、ユーザー名、パスワードを確認してください";
+    const html = renderLoginPage({
+      clientId,
+      redirectUri,
+      codeChallenge,
+      codeChallengeMethod: "S256",
+      state,
+      errorMessage,
+      values: { subdomain, username },
+    });
+    c.header("X-Frame-Options", "DENY");
+    c.header("Content-Security-Policy", "frame-ancestors 'none'");
+    return c.html(html, 400);
+  }
 
   let jwe: string;
   try {
