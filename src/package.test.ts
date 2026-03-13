@@ -8,8 +8,6 @@ describe("package.json dependencies", () => {
   );
 
   it("should include @kintone/rest-api-client in dependencies", () => {
-    expect(packageJson.dependencies).toHaveProperty(
-      "@kintone/rest-api-client",
-    );
+    expect(packageJson.dependencies).toHaveProperty("@kintone/rest-api-client");
   });
 });
