@@ -4,7 +4,11 @@ import {
 } from "@kintone/rest-api-client";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatKintoneError, registerKintoneTools } from "./tools.js";
+import {
+  formatKintoneError,
+  registerKintoneTools,
+  wrapWithErrorHandling,
+} from "./tools.js";
 
 describe("registerKintoneTools", () => {
   function createTestServer(): McpServer {
@@ -154,6 +158,48 @@ describe("wrapWithErrorHandling timer cleanup", () => {
     // If the timer was properly cleaned up, no new pending timers should remain.
     // This test should FAIL because clearTimeout is never called.
     expect(timerCountAfter).toBe(timerCountBefore);
+  });
+
+  it("should abort the original callback via AbortSignal when timeout occurs", async () => {
+    // This test verifies that wrapWithErrorHandling passes an AbortSignal
+    // to the callback and aborts it on timeout. Currently, wrapWithErrorHandling
+    // does NOT pass an AbortSignal, so this test is expected to FAIL.
+    let receivedSignal: AbortSignal | undefined;
+
+    const slowCallback = async (
+      _args: unknown,
+      options?: { signal?: AbortSignal },
+    ) => {
+      receivedSignal = options?.signal;
+      // Simulate a long-running operation that respects AbortSignal
+      return new Promise((resolve, reject) => {
+        if (receivedSignal) {
+          receivedSignal.addEventListener("abort", () => {
+            reject(new Error("aborted"));
+          });
+        }
+        // Never resolves on its own — relies on timeout
+      });
+    };
+
+    const wrapped = wrapWithErrorHandling("test-tool", slowCallback);
+
+    const resultPromise = wrapped({ app: "1" });
+
+    // Advance past the 60s timeout
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    const result = await resultPromise;
+
+    // The call should have timed out
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("timed out");
+
+    // The callback should have received an AbortSignal that is now aborted.
+    // This assertion will FAIL because the current implementation does not
+    // pass an AbortSignal to the callback.
+    expect(receivedSignal).toBeDefined();
+    expect(receivedSignal?.aborted).toBe(true);
   });
 
   it("should have zero pending timers with 60s delay after the tool call completes", async () => {
