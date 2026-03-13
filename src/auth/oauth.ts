@@ -308,6 +308,9 @@ oauthApp.post("/authorize", async (c) => {
 
 // Token Endpoint
 oauthApp.post("/token", async (c) => {
+  c.header("Cache-Control", "no-store");
+  c.header("Pragma", "no-cache");
+
   const form = await c.req.parseBody();
   const grantType = form.grant_type;
   const code = form.code;

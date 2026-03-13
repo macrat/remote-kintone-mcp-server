@@ -157,6 +157,124 @@ describe("OAuth endpoints", () => {
     });
   });
 
+  describe("POST /token cache headers (issue #3)", () => {
+    // Helper: register client, authorize, and return everything needed for token exchange
+    async function setupTokenExchange() {
+      const regRes = await oauthApp.request("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:3000/callback"],
+        }),
+      });
+      const { client_id, client_secret } = await regRes.json();
+
+      const { verifier, challenge } = await generatePKCE();
+
+      const formData = new URLSearchParams({
+        subdomain: "example",
+        username: "test-user",
+        password: "test-password",
+        client_id,
+        redirect_uri: "http://localhost:3000/callback",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+        state: "test-state",
+      });
+
+      const authPostRes = await oauthApp.request("/authorize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+        redirect: "manual",
+      });
+      const location = authPostRes.headers.get("location") ?? "";
+      const code = new URL(location).searchParams.get("code") ?? "";
+
+      return { client_id, client_secret, verifier, code };
+    }
+
+    it("success response includes Cache-Control: no-store", async () => {
+      const { client_id, client_secret, verifier, code } =
+        await setupTokenExchange();
+
+      const tokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const tokenRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: tokenData.toString(),
+      });
+      expect(tokenRes.status).toBe(200);
+      expect(tokenRes.headers.get("cache-control")).toBe("no-store");
+    });
+
+    it("success response includes Pragma: no-cache", async () => {
+      const { client_id, client_secret, verifier, code } =
+        await setupTokenExchange();
+
+      const tokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: verifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const tokenRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: tokenData.toString(),
+      });
+      expect(tokenRes.status).toBe(200);
+      expect(tokenRes.headers.get("pragma")).toBe("no-cache");
+    });
+
+    it("error response includes Cache-Control: no-store and Pragma: no-cache", async () => {
+      const { client_id, client_secret, verifier, code } =
+        await setupTokenExchange();
+
+      // Use wrong code_verifier to trigger an invalid_grant error
+      const { verifier: wrongVerifier } = await generatePKCE();
+
+      const tokenData = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: wrongVerifier,
+        redirect_uri: "http://localhost:3000/callback",
+        client_id,
+        client_secret,
+      });
+
+      const tokenRes = await oauthApp.request("/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: tokenData.toString(),
+      });
+      expect(tokenRes.status).toBe(400);
+      const body = await tokenRes.json();
+      expect(body.error).toBe("invalid_grant");
+      expect(tokenRes.headers.get("cache-control")).toBe("no-store");
+      expect(tokenRes.headers.get("pragma")).toBe("no-cache");
+    });
+  });
+
   describe("PKCE verification", () => {
     it("rejects token exchange with wrong code_verifier", async () => {
       // Register client
