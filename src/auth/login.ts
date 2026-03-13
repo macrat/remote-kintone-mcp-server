@@ -83,6 +83,16 @@ ${errorHtml}<form method="POST" action="/authorize" aria-label="kintone ログ�
       input.value = m[1];
     }
   });
+  var form = document.querySelector("form");
+  if (form) {
+    form.addEventListener("submit", function() {
+      var btn = form.querySelector("button[type=submit]");
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "ログイン中...";
+      }
+    });
+  }
 })();
 </script>
 </body>

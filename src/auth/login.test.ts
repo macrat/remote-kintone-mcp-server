@@ -152,6 +152,21 @@ describe("renderLoginPage", () => {
   });
 });
 
+describe("double-submit prevention", () => {
+  it("includes JavaScript that disables the submit button on form submit", () => {
+    const html = renderLoginPage(defaultParams);
+
+    expect(html).toContain("submit");
+    expect(html).toContain("disabled");
+  });
+
+  it("shows a loading text such as 'ログイン中...' during submission", () => {
+    const html = renderLoginPage(defaultParams);
+
+    expect(html).toMatch(/ログイン中/);
+  });
+});
+
 describe("accessibility: subdomain_desc helper text", () => {
   const html = renderLoginPage(defaultParams);
 
