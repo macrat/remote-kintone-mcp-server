@@ -939,7 +939,7 @@ describe("OAuth endpoints", () => {
             getApps: vi.fn().mockRejectedValue(new Error("Authentication failed")),
           },
         };
-        return fakeClient as ReturnType<typeof createKintoneClient>;
+        return fakeClient as unknown as ReturnType<typeof createKintoneClient>;
       });
 
       const { client_id, challenge } = await registerClientAndPKCE();
@@ -981,7 +981,7 @@ describe("OAuth endpoints", () => {
             getApps: vi.fn().mockResolvedValue({ apps: [] }),
           },
         };
-        return fakeClient as ReturnType<typeof createKintoneClient>;
+        return fakeClient as unknown as ReturnType<typeof createKintoneClient>;
       });
 
       const { client_id, challenge } = await registerClientAndPKCE();
